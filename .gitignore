@@ -22,3 +22,6 @@ test-results/
 *.ipr
 *.iws
 .serena
+# Graceville: private keys - never upload
+.env
+.env.*
