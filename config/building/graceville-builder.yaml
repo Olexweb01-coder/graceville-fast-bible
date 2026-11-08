@@ -1,0 +1,22 @@
+# Graceville Fast Bible installer.
+# Builds on FreeShow's own settings, but with its own name and app ID, so it installs NEXT TO a real
+# FreeShow (never over it) and keeps its own settings and data folder.
+
+extends: config/building/electron-builder.yaml
+
+appId: org.graceville.fastbible
+productName: Graceville Fast Bible
+artifactName: Graceville-Fast-Bible-Setup-${version}.${ext}
+
+# The app's runtime name decides where its settings live (%APPDATA%\Graceville Fast Bible)
+extraMetadata:
+    productName: Graceville Fast Bible
+
+publish: null
+
+win:
+    # FreeShow signs with its own certificate; Graceville builds are not signed
+    azureSignOptions: null
+
+mac:
+    identity: null

@@ -374,7 +374,8 @@ export function getDefaultDataFolderRoot() {
     const documentsPath = getMediaFolderPath("documents")
     if (!documentsPath) return appDataPath
 
-    const appFolderName = "FreeShow"
+    // Graceville: own data folder (Documents/Graceville Fast Bible), never shared with a real FreeShow install
+    const appFolderName = "Graceville Fast Bible"
     const fullPath = path.join(documentsPath, appFolderName)
 
     try {
