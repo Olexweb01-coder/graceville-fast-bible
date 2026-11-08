@@ -69,7 +69,7 @@ export const COMMON_MISHEARINGS: Record<string, string> = {
     sec: "second",
     turd: "third",
     ford: "fourth",
-    for: "four",
+    // Graceville: "for" -> "four" removed. "Psalm 23, for the Lord is my shepherd" became Psalm 23:4 (a wrong verse).
 
     // Other Mishearings
     cha: "chapter"

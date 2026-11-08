@@ -46,23 +46,8 @@ const HUNDRED_PATTERN = new RegExp(`\\b(?:(\\d+|${MULTIPLIER_WORDS})\\s*)?(${HUN
 export function normalizeNumbers(text: string): string {
     let normalized = text.toLowerCase()
 
-    // 1. Normalize "hundred" numbers (e.g., "deux cent seize" -> "216", "one hundred and nineteen" -> "119")
-    normalized = normalized.replace(HUNDRED_PATTERN, (_match, hundredMultiplier, hundredWord, remainder) => {
-        const baseHundredVal = HUNDREDS_WORDS[hundredWord.toLowerCase()] || 100
-        let mult = 1
-        if (hundredMultiplier) {
-            mult = ALL_NUMBER_WORDS[hundredMultiplier.toLowerCase()] || parseInt(hundredMultiplier, 10) || 1
-        }
-
-        let rem = 0
-        if (remainder) {
-            rem = ALL_NUMBER_WORDS[remainder.toLowerCase()] || parseInt(remainder, 10) || 0
-        }
-
-        // If baseHundredVal already includes multiplier (e.g. doscientos = 200), don't multiply again
-        const hundredTotal = baseHundredVal >= 200 ? baseHundredVal : mult * baseHundredVal
-        return (hundredTotal + rem).toString()
-    })
+    // Graceville: two-word numbers are combined BEFORE "hundred" is handled, so the hundred step sees the whole remainder
+    // ("one hundred and twenty one" -> "one hundred and 21" -> "121", not "120 1").
 
     // 2. Normalize special complex numbers (e.g. French "soixante-seize" -> 76, "quatre-vingt-dix-neuf" -> 99)
     normalized = normalized.replace(SPECIAL_COMPLEX_REGEX, (match) => {
@@ -82,6 +67,24 @@ export function normalizeNumbers(text: string): string {
         const tensVal = TENS_WORDS[tens.toLowerCase()] || 0
         const unitsVal = UNIT_WORDS[units.toLowerCase()] || ORDINAL_UNIT_WORDS[units.toLowerCase()] || 0
         return (tensVal + unitsVal).toString()
+    })
+
+    // 1. Normalize "hundred" numbers (e.g., "deux cent seize" -> "216", "one hundred and nineteen" -> "119")
+    normalized = normalized.replace(HUNDRED_PATTERN, (_match, hundredMultiplier, hundredWord, remainder) => {
+        const baseHundredVal = HUNDREDS_WORDS[hundredWord.toLowerCase()] || 100
+        let mult = 1
+        if (hundredMultiplier) {
+            mult = ALL_NUMBER_WORDS[hundredMultiplier.toLowerCase()] || parseInt(hundredMultiplier, 10) || 1
+        }
+
+        let rem = 0
+        if (remainder) {
+            rem = ALL_NUMBER_WORDS[remainder.toLowerCase()] || parseInt(remainder, 10) || 0
+        }
+
+        // If baseHundredVal already includes multiplier (e.g. doscientos = 200), don't multiply again
+        const hundredTotal = baseHundredVal >= 200 ? baseHundredVal : mult * baseHundredVal
+        return (hundredTotal + rem).toString()
     })
 
     // 5. Convert single-word cardinal and ordinal numbers ("trois" -> "3", "seize" -> "16", "eighth" -> "8")

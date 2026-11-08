@@ -4,6 +4,7 @@ import { normalizeMishearings } from "./mishearings"
 import { normalizeNumbers } from "./numbers"
 import { normalizeBookName, RANGE_PATTERN, VERSE_PATTERN } from "./referenceDictionary"
 import { normalizeReferences } from "./references"
+import { AUTO_SHOW_CONFIDENCE, capInferredConfidence, findNextVerseRequest, hasSpokenVerseNumber, joinAdjacentVerses, prepareSpokenReferences, refineSpokenReferences } from "./graceville/spokenReferences"
 
 export class BibleSearchDetector {
     constructor(private cacheData: BibleCacheData) {}
@@ -44,7 +45,8 @@ export class BibleSearchDetector {
             if (startVerseNum < 1 || startVerseNum > chapterData.verseCount) continue
 
             let referenceContent = `${chapterData.bookName} ${chapterData.chapterNumber}:${startVerseNum}`
-            if (endVerseNum && endVerseNum > startVerseNum) {
+            // Graceville: only show a range when its last verse exists
+            if (endVerseNum && endVerseNum > startVerseNum && endVerseNum <= chapterData.verseCount) {
                 referenceContent += `-${endVerseNum}`
             }
 
@@ -88,7 +90,8 @@ export class BibleSearchDetector {
             if (!chapterData || startVerseNum < 1 || startVerseNum > chapterData.verseCount) continue
 
             let referenceContent = `${chapterData.bookName} ${chapterData.chapterNumber}:${startVerseNum}`
-            if (endVerseNum && endVerseNum > startVerseNum) {
+            // Graceville: only show a range when its last verse exists
+            if (endVerseNum && endVerseNum > startVerseNum && endVerseNum <= chapterData.verseCount) {
                 referenceContent += `-${endVerseNum}`
             }
 
@@ -476,17 +479,28 @@ export class BibleSearchDetector {
         if (this.DEBUG_MODE) console.log("[DETECTION] Starting search with transcript:", transcript)
         if (isCancelled?.()) return null
 
+        // used for recognising quoted verses (unchanged)
         const mishearingsCorrected = normalizeMishearings(transcript)
-        const rawNormalizedNumbers = normalizeNumbers(transcript)
-        const mishearingsNormalizedNumbers = normalizeNumbers(mishearingsCorrected)
 
-        const rawNormalized = normalizeReferences(rawNormalizedNumbers, this.cacheData)
-        const mishearingsNormalized = normalizeReferences(mishearingsNormalizedNumbers, this.cacheData)
+        // Graceville: the reference path gets its own preparation (see graceville/spokenReferences.ts)
+        const referenceText = prepareSpokenReferences(transcript)
+        const rawNormalizedNumbers = refineSpokenReferences(normalizeNumbers(referenceText))
+        const mishearingsNormalizedNumbers = refineSpokenReferences(normalizeNumbers(normalizeMishearings(referenceText)))
+
+        const rawNormalized = joinAdjacentVerses(normalizeReferences(rawNormalizedNumbers, this.cacheData))
+        const mishearingsNormalized = joinAdjacentVerses(normalizeReferences(mishearingsNormalizedNumbers, this.cacheData))
 
         if (this.DEBUG_MODE) console.log("[DETECTION] Mishearings corrected:", mishearingsCorrected)
         if (this.DEBUG_MODE) console.log("[DETECTION] Mishearings normalized:", mishearingsNormalized)
 
-        const refMatch = this.findReferenceMatch(mishearingsNormalized) || this.findReferenceMatch(rawNormalized) || this.findStandaloneVerseMatch(mishearingsNormalized, currentlyOutputted) || this.findStandaloneVerseMatch(rawNormalized, currentlyOutputted)
+        const explicitMatch = this.findReferenceMatch(mishearingsNormalized) || this.findReferenceMatch(rawNormalized)
+
+        // Graceville: "verse 17" said out loud while a verse is on screen is a precise request, so it may go up automatically.
+        // A bare number heard while someone reads ("...17 For God sent not...") stays a suggestion.
+        let followUpMatch = this.findStandaloneVerseMatch(mishearingsNormalized, currentlyOutputted) || this.findStandaloneVerseMatch(rawNormalized, currentlyOutputted)
+        if (followUpMatch && hasSpokenVerseNumber(rawNormalized)) followUpMatch = { ...followUpMatch, confidence: AUTO_SHOW_CONFIDENCE }
+
+        const refMatch = explicitMatch || followUpMatch || findNextVerseRequest(transcript, currentlyOutputted, this.cacheData)
 
         if (this.DEBUG_MODE) console.log("[DETECTION] Reference match result:", refMatch)
 
@@ -521,6 +535,7 @@ export class BibleSearchDetector {
         // explicit book/chapter/verse reference has priority
         if (refMatch && refMatch.confidence >= 75) return refMatch
 
-        return bestContentMatch || null
+        // Graceville: verses recognised only from quoted words are suggestions, never auto-shown
+        return capInferredConfidence(bestContentMatch)
     }
 }
