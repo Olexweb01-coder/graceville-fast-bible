@@ -5,7 +5,10 @@ import { isProd } from ".."
 // let notification: Notification | null
 
 export default async function checkForUpdates() {
-    if (!isProd) return
+    // Graceville: automatic background updates are off. Graceville installers are built and installed by hand,
+    // and this updater would otherwise look for FreeShow's update files.
+    const GRACEVILLE_AUTO_UPDATES = false
+    if (!isProd || !GRACEVILLE_AUTO_UPDATES) return
 
     try {
         await autoUpdater.checkForUpdatesAndNotify()

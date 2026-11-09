@@ -10,6 +10,7 @@
     import MaterialToggleSwitch from "../../inputs/MaterialToggleSwitch.svelte"
     import InputRow from "../../input/InputRow.svelte"
     import { registerPopupSubmit } from "../../../utils/popup"
+    import { GRACEVILLE_RELEASES_PAGE } from "../../../utils/graceville"
 
     registerPopupSubmit(downloadLatest)
 
@@ -54,8 +55,8 @@
     function downloadLatest() {
         if (!hasUpdate || !latestVersion) return
 
-        const isBeta = latestVersion.includes("-beta")
-        sendMain(Main.URL, isBeta ? "https://github.com/ChurchApps/FreeShow/releases" : "https://freeshow.app/?download")
+        // Graceville: download from our own releases page
+        sendMain(Main.URL, GRACEVILLE_RELEASES_PAGE)
     }
 
     onMount(checkUpdates)

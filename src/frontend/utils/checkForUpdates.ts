@@ -1,5 +1,6 @@
 import { get } from "svelte/store"
 import { activePopup, alertUpdates, isDev, popupData, special } from "./../stores"
+import { GRACEVILLE_RELEASES_API } from "./graceville"
 
 interface UpdateData {
     latestVersion: string
@@ -8,8 +9,10 @@ interface UpdateData {
 }
 
 export async function getUpdateData(currentVersion: string, includeBeta: boolean): Promise<UpdateData> {
-    const response = await fetch("https://api.github.com/repos/ChurchApps/freeshow/releases")
+    // Graceville: check our own releases, never FreeShow's
+    const response = await fetch(GRACEVILLE_RELEASES_API)
     const data = await response.json()
+    if (!Array.isArray(data)) return { latestVersion: "", changelog: "", hasUpdate: false }
 
     const latestAll = data.filter((a: any) => a.draft === false)[0]
     const latestRelease = data.filter((a: any) => a.draft === false && a.prerelease === false)[0]

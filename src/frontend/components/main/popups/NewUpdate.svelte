@@ -6,15 +6,15 @@
     import HRule from "../../input/HRule.svelte"
     import MaterialButton from "../../inputs/MaterialButton.svelte"
     import { registerPopupSubmit } from "../../../utils/popup"
+    import { GRACEVILLE_RELEASES_PAGE } from "../../../utils/graceville"
 
     registerPopupSubmit(download)
 
     let changelog = ($popupData.changelog || "").replaceAll("\r\n", "<br>").replaceAll("-", "•")
-    let latestVersion = $popupData.latestVersion
 
     function download() {
-        const isBeta = latestVersion.includes("-beta")
-        sendMain(Main.URL, isBeta ? "https://github.com/ChurchApps/FreeShow/releases" : "https://freeshow.app/?download")
+        // Graceville: download from our own releases page
+        sendMain(Main.URL, GRACEVILLE_RELEASES_PAGE)
 
         activePopup.set(null)
         popupData.set({})
