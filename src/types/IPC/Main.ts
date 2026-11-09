@@ -208,6 +208,8 @@ export interface MainSendPayloads {
     [Main.DELETE_BACKUP]: { path: string }
     [Main.SPELLCHECK]: { addToDictionary?: string; fixSpelling?: string }
     [Main.URL]: string
+    // Graceville: once a minute, whether the app is idle (used to install self-updates safely)
+    [Main.AUTO_UPDATE]: { idle: boolean } | void
     [Main.LANGUAGE]: { lang: string; strings: Dictionary }
     [Main.UPDATE_DATA_PATH]: { newPath: string; oldPath: string }
     [Main.LOG_ERROR]: ErrorLog

@@ -90,7 +90,7 @@ export const mainResponses: MainResponses = {
     [Main.SHOW]: (data) => loadShow(data),
     // MAIN
     [Main.SHOWS]: (() => loadShowsAsync()) as any,
-    [Main.AUTO_UPDATE]: () => checkForUpdates(),
+    [Main.AUTO_UPDATE]: (data) => checkForUpdates(data),
     [Main.URL]: (data) => openURL(data),
     [Main.LANGUAGE]: (data) => setGlobalMenu(data.strings),
     [Main.GET_PATHS]: () => getPaths(),

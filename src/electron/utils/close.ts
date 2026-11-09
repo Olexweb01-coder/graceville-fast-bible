@@ -12,6 +12,7 @@ import { stopApiListener } from "./api"
 import { stopMidi } from "./midi"
 import { SpeechToText } from "../ai/stt/SpeechToTextManager"
 import { unsetPlayingAudio } from "../audio/nowPlaying"
+import { installUpdateInsteadOfQuit } from "./updater"
 
 export let dialogClose = false // is unsaved
 export function callClose(e: Electron.Event) {
@@ -66,7 +67,8 @@ export async function exitApp() {
     }
 
     try {
-        app.quit()
+        // Graceville: when closing to install an update, the updater quits, installs silently and reopens the app
+        if (!installUpdateInsteadOfQuit()) app.quit()
 
         // shouldn't need to use exit!
         setTimeout(() => {

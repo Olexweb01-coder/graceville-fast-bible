@@ -9,6 +9,7 @@ import { requestMain, requestMainMultiple, sendMain, sendMainMultiple } from "..
 import { cameraManager } from "../media/cameraManager"
 import { activePopup, activeProfile, alertMessage, cachePath, cloudSyncData, contentProviderData, currentWindow, dataPath, deviceId, driveKeys, isDev, loaded, loadedState, os, profiles, providerConnections, shows, special, version, windowState } from "../stores"
 import { startTracking } from "./analytics"
+import { startGracevilleIdleReports } from "./gracevilleUpdates"
 import { setupCloudSync } from "./cloudSync"
 import { wait, waitUntilValueIsDefined } from "./common"
 import { getDefaultElements } from "./createData"
@@ -81,6 +82,7 @@ async function startupMain() {
     if (!hasProfiles || get(activeProfile) !== null) checkStartupActions()
 
     startTracking()
+    startGracevilleIdleReports()
     contentProviderSync(true)
 
     // custom alert
