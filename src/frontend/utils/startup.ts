@@ -10,6 +10,7 @@ import { cameraManager } from "../media/cameraManager"
 import { activePopup, activeProfile, alertMessage, cachePath, cloudSyncData, contentProviderData, currentWindow, dataPath, deviceId, driveKeys, isDev, loaded, loadedState, os, profiles, providerConnections, shows, special, version, windowState } from "../stores"
 import { startTracking } from "./analytics"
 import { startGracevilleIdleReports } from "./gracevilleUpdates"
+import { runGracevilleSetup } from "./gracevilleSetup"
 import { setupCloudSync } from "./cloudSync"
 import { wait, waitUntilValueIsDefined } from "./common"
 import { getDefaultElements } from "./createData"
@@ -83,6 +84,7 @@ async function startupMain() {
 
     startTracking()
     startGracevilleIdleReports()
+    void runGracevilleSetup()
     contentProviderSync(true)
 
     // custom alert
