@@ -6,6 +6,7 @@
     import Icon from "../helpers/Icon.svelte"
     import T from "../helpers/T.svelte"
     import Button from "../inputs/Button.svelte"
+    import GracevilleCredit from "../graceville/GracevilleCredit.svelte"
 
     let activeTabs: SettingsTabs[] = []
     $: profile = $profiles[$activeProfile || ""]
@@ -54,6 +55,9 @@
             <p style="margin: 5px;"><T id="settings.{tab}" /></p>
         </Button>
     {/each}
+
+    <!-- Graceville -->
+    <div class="credit"><GracevilleCredit small /></div>
 </div>
 
 <style>
@@ -75,5 +79,9 @@
 
     .main :global(button.active) {
         background-color: var(--primary-darker);
+    }
+
+    .credit {
+        margin-top: auto;
     }
 </style>

@@ -1,12 +1,12 @@
 {
     "$schema": "https://json.schemastore.org/web-manifest-combined.json",
-    "name": "CamShow",
-    "short_name": "CamShow",
+    "name": "Graceville Camera",
+    "short_name": "Graceville Camera",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#242832",
     "theme_color": "#242832",
-    "description": "A camera app for FreeShow.",
+    "description": "A camera app for Graceville Fast Bible.",
     "icons": [
         {
             "src": "icon.png",

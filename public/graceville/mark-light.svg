@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="40 50 360 370">
+    <!-- Graceville mark for dark backgrounds (deep green replaced by white) -->
+    <g fill="none" stroke-linejoin="round" stroke-linecap="butt" stroke-width="54">
+        <path d="M104 286 L222 398 L340 286" stroke="#b9ce4b" />
+        <path d="M66 232 L232 76" stroke="#ffffff" />
+        <path d="M192 234 L276 152 L368 240" stroke="#ffffff" />
+    </g>
+</svg>

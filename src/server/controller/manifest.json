@@ -1,12 +1,12 @@
 {
     "$schema": "https://json.schemastore.org/web-manifest-combined.json",
-    "name": "ControlShow",
-    "short_name": "ControlShow",
+    "name": "Graceville Controller",
+    "short_name": "Graceville Controller",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#242832",
     "theme_color": "#242832",
-    "description": "A remote controller app for FreeShow.",
+    "description": "A remote controller for Graceville Fast Bible.",
     "icons": [
         {
             "src": "icon.png",

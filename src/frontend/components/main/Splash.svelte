@@ -8,6 +8,7 @@
     import MaterialButton from "../inputs/MaterialButton.svelte"
     import Center from "../system/Center.svelte"
     import { getVOTD } from "./votd"
+    import GracevilleCredit from "../graceville/GracevilleCredit.svelte"
 
     function createProject() {
         // if opened project is empty go to project list (to reduce confusion)
@@ -47,8 +48,14 @@
 </script>
 
 <Center class="context #splash">
-    <h1>FreeShow</h1>
+    <!-- Graceville -->
+    <div class="brand">
+        <img src="./graceville/mark-light.svg" alt="" draggable={false} />
+        <h1>Graceville</h1>
+    </div>
+    <p class="sub">Fast Bible</p>
     <p style="opacity: 0.7;">v{$version}</p>
+    <div style="padding-top: 8px"><GracevilleCredit /></div>
     {#if $special.splashText}
         <p style="padding-top: 30px">
             {@html extractLinksAndCleanText($special.splashText)}
@@ -102,6 +109,23 @@
     h1 {
         font-size: 4em;
         overflow: initial;
+    }
+
+    /* Graceville */
+    .brand {
+        display: flex;
+        align-items: center;
+        gap: 0.35em;
+        font-size: 1em;
+    }
+    .brand img {
+        height: 3.4em;
+    }
+    .sub {
+        font-size: 1.6em;
+        font-weight: 300;
+        margin-top: -0.3em;
+        letter-spacing: 0.04em;
     }
 
     p {

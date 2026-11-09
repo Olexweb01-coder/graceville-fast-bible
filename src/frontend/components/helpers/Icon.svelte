@@ -23,11 +23,11 @@
 
     const gradientId = `icon-gradient-${uid(5)}`
     export let gradientColor: string | null = null
-    let baseColor = gradientColor || (gradient ? "#e800f0" : "#f0008c")
+    let baseColor = gradientColor || (gradient ? "#8fb83a" : "#b9ce4b")
     $: if ($themes[$theme]) updateBaseColor()
     function updateBaseColor() {
         if (gradientColor || gradient) return
-        baseColor = $themes[$theme]?.colors?.secondary || "#f0008c"
+        baseColor = $themes[$theme]?.colors?.secondary || "#b9ce4b"
     }
 
     // smaller change
@@ -59,9 +59,9 @@
         {#if !white && colorMid && colorEnd && colorStart}
             <defs>
                 <linearGradient id={gradientId} x1="0%" y1="0%" x2="100%" y2="100%">
-                    <!-- <stop offset="0%" stop-color="#f0008c" />
-                    <stop offset="50%" stop-color="#e800f0" />
-                    <stop offset="100%" stop-color="#8000f0" /> -->
+                    <!-- <stop offset="0%" stop-color="#b9ce4b" />
+                    <stop offset="50%" stop-color="#8fb83a" />
+                    <stop offset="100%" stop-color="#1d4a17" /> -->
                     <stop offset="0%" stop-color={colorStart} />
                     <stop offset="50%" stop-color={colorMid} />
                     <stop offset="100%" stop-color={colorEnd} />

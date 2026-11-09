@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+    <!-- Graceville Fast Bible app icon -->
+    <rect x="16" y="16" width="480" height="480" rx="104" fill="#ffffff" />
+    <g transform="translate(46 34) scale(0.88)" fill="none" stroke-linejoin="round" stroke-linecap="butt" stroke-width="54">
+        <path d="M104 286 L222 398 L340 286" stroke="#b9ce4b" />
+        <path d="M66 232 L232 76" stroke="#1d4a17" />
+        <path d="M192 234 L276 152 L368 240" stroke="#1d4a17" />
+    </g>
+</svg>

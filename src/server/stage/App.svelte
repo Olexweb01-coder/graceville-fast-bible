@@ -12,7 +12,7 @@
 
     initSocket()
 
-    const freeshowLogo = new URL("../../../public/import-logos/freeshow.webp", import.meta.url).href
+    const freeshowLogo = new URL("../../../public/graceville/mark.svg", import.meta.url).href
 
     let inputPassword: string = ""
 
@@ -165,7 +165,7 @@
     <div class="auth-page">
         <div class="panel" style="align-items: center; text-align: center;">
             <div class="brand">
-                <img class="logo" src={freeshowLogo} alt="FreeShow logo" draggable="false" />
+                <img class="logo" src={freeshowLogo} alt="Graceville logo" draggable="false" />
                 <h1>StageShow</h1>
             </div>
             <p style="opacity: 0.7; font-size: 0.95em;">{translate("remote.loading", $dictionary, "Loading...")}</p>
@@ -176,7 +176,7 @@
         <div class="auth-page">
             <div class="panel">
                 <div class="brand">
-                    <img class="logo" src={freeshowLogo} alt="FreeShow logo" draggable="false" />
+                    <img class="logo" src={freeshowLogo} alt="Graceville logo" draggable="false" />
                     <h1>StageShow</h1>
                 </div>
 
@@ -200,7 +200,7 @@
         <div class="auth-page">
             <div class="panel" style="align-items: center; text-align: center;">
                 <div class="brand">
-                    <img class="logo" src={freeshowLogo} alt="FreeShow logo" draggable="false" />
+                    <img class="logo" src={freeshowLogo} alt="Graceville logo" draggable="false" />
                     <h1>StageShow</h1>
                 </div>
                 <p style="opacity: 0.6; padding: 12px 0;">{translate("empty.shows", $dictionary, "No stage layouts found")}</p>
@@ -275,8 +275,8 @@
         --primary-darkest: #12121c;
         --text: #f0f0ff;
         --textInvert: #131313;
-        --secondary: #f0008c;
-        --secondary-opacity: rgba(240, 0, 140, 0.5);
+        --secondary: #b9ce4b;
+        --secondary-opacity: rgba(185, 206, 75, 0.5);
         --secondary-text: #f0f0ff;
 
         --hover: rgb(255 255 255 / 0.05);

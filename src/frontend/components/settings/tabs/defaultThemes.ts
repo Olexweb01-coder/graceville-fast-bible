@@ -16,8 +16,8 @@ export const defaultThemes: { [key: string]: Themes } = {
             text: "#f0f0ff",
             textInvert: "#131313",
             "secondary-text": "#f0f0ff",
-            secondary: "#F0008C",
-            "secondary-opacity": "rgba(240, 0, 140, 0.5)",
+            secondary: "#B9CE4B",
+            "secondary-opacity": "rgba(185, 206, 75, 0.5)",
             hover: "rgb(255 255 255 / 0.05)",
             focus: "rgb(255 255 255 / 0.1)"
         }
@@ -58,7 +58,7 @@ export const defaultThemes: { [key: string]: Themes } = {
             text: "#333748",
             textInvert: "#f0f0ff",
             "secondary-text": "#131313",
-            secondary: "#F0008C",
+            secondary: "#B9CE4B",
             "secondary-opacity": "rgb(230 52 156 / 0.5)",
             hover: "rgb(0 0 0 / 0.05)",
             focus: "rgb(0 0 0 / 0.1)"

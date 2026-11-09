@@ -1,12 +1,12 @@
 {
     "$schema": "https://json.schemastore.org/web-manifest-combined.json",
-    "name": "FreeShow Output",
-    "short_name": "FreeShow Output",
+    "name": "Graceville Output",
+    "short_name": "Graceville Output",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#242832",
     "theme_color": "#242832",
-    "description": "View the output from FreeShow.",
+    "description": "View the output from Graceville Fast Bible.",
     "icons": [
         {
             "src": "icon.png",

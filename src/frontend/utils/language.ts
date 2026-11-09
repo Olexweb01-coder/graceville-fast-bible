@@ -7,6 +7,7 @@ import { sortByName } from "../components/helpers/array"
 import { sendMain } from "../IPC/main"
 import { dictionary, language, localeDirection } from "../stores"
 import { isMainWindow } from "./common"
+import { brandTranslations } from "./graceville"
 import { languageFlags, languages, replace } from "./languageData"
 import { send } from "./request"
 
@@ -60,6 +61,9 @@ function setLanguage(locale = "", init = false) {
                 }
             })
         }
+
+        // Graceville: the app's own name in every translated text
+        brandTranslations(messages as any)
 
         dictionary.set(messages)
         if (init || !isMainWindow()) return

@@ -3,6 +3,8 @@
     import T from "../../helpers/T.svelte"
     import Link from "../../inputs/Link.svelte"
     import MaterialButton from "../../inputs/MaterialButton.svelte"
+    import GracevilleCredit from "../../graceville/GracevilleCredit.svelte"
+    import { GRACEVILLE_APP_NAME, GRACEVILLE_REPOSITORY_URL } from "../../../utils/graceville"
 
     const assets: { name: string; url: string; title?: string }[] = [
         { name: "CMG Sans (Custom font)", url: "https://www.churchmotiongraphics.com/cmg-sans/" },
@@ -24,8 +26,8 @@
 
 <div style="text-align: center;">
     <div class="logo">
-        <img style="height: 35px;" src="./import-logos/freeshow.webp" alt="FreeShow-logo" draggable={false} />
-        <h1 style="color: var(--text);font-size: 1.7em;">FreeShow</h1>
+        <img style="height: 35px;" src="./graceville/mark-light.svg" alt="Graceville logo" draggable={false} />
+        <h1 style="color: var(--text);font-size: 1.7em;">{GRACEVILLE_APP_NAME}</h1>
     </div>
 
     <p style="font-size: 0.8em;margin-top: 2px;">
@@ -38,6 +40,8 @@
     <!-- <p>
         <Link url="https://churchapps.org/">ChurchApps</Link>
     </p> -->
+
+    <div style="margin-top: 12px;"><GracevilleCredit showFreeShow /></div>
 </div>
 
 <hr />
@@ -50,7 +54,7 @@
         </div>
         <div>
             • <T id="about.report" />
-            <Link url="https://github.com/ChurchApps/FreeShow/issues">GitHub Issues</Link>
+            <Link url={`${GRACEVILLE_REPOSITORY_URL}/issues`}>GitHub Issues</Link>
         </div>
         <div>
             • <T id="about.translate" />

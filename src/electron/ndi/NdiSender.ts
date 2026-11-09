@@ -90,7 +90,7 @@ export class NdiSender {
     }
 
     static initNameNDI(name?: string, outputName?: string) {
-        return name || `FreeShow NDI${outputName ? ` - ${outputName}` : ""}`
+        return name || `Graceville NDI${outputName ? ` - ${outputName}` : ""}`
     }
 
     static isBusyNDI(id: string): boolean {

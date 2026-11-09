@@ -101,7 +101,11 @@
             <div class="unsaved" />
         {/if}
         <!-- logo -->
-        <h1 style="align-self: center;width: 100%;padding: 0px 10px;text-align: center;font-size: 1.8em;">FreeShow</h1>
+        <!-- Graceville -->
+        <h1 class="graceville-title">
+            <img src="./graceville/mark-light.svg" alt="" draggable={false} />
+            <span>Graceville</span><span class="sub">Fast Bible</span>
+        </h1>
         <!-- <div class="logo">
             <img style="height: 35px;" src="./import-logos/freeshow.webp" alt="FreeShow-logo" draggable={false} />
             <h1 style="color: var(--text);font-size: 1.7em;">FreeShow</h1>
@@ -159,6 +163,26 @@
 </div>
 
 <style>
+    /* Graceville */
+    .graceville-title {
+        align-self: center;
+        width: 100%;
+        padding: 0px 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        font-size: 1.45em;
+        white-space: nowrap;
+    }
+    .graceville-title img {
+        height: 1.25em;
+    }
+    .graceville-title .sub {
+        font-weight: 300;
+        color: var(--text);
+    }
+
     .top {
         position: relative;
         display: flex;

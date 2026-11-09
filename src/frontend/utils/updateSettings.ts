@@ -183,7 +183,9 @@ export function updateSettings(data: any) {
         // update colors (pre 0.9.2 or 1.4.9)
         const pre092 = currentTheme.colors.secondary?.toLowerCase() === "#e6349c"
         const pre149 = currentTheme.colors.primary?.toLowerCase() === "#292c36"
-        if (data.theme === "default" && (pre092 || pre149)) {
+        // Graceville: installs that saved FreeShow's pink default theme switch to the Graceville greens
+        const preGraceville = currentTheme.colors.secondary?.toLowerCase() === "#f0008c"
+        if (data.theme === "default" && (pre092 || pre149 || preGraceville)) {
             themes.update((a) => {
                 a.default = clone(defaultThemes.default)
                 currentTheme = a.default
