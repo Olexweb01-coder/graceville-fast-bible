@@ -44,6 +44,13 @@
         aiSmartAction.update((cur) => (cur?.id === id ? null : cur))
         aiSuggestions.update((list) => list.filter((item) => item.id !== id))
     }
+
+    // Graceville: one click clears the transcript and all suggestions
+    function clearAll() {
+        Transcript.clear()
+        aiSmartAction.set(null)
+        aiSuggestions.set([])
+    }
 </script>
 
 <div class="card-body">
@@ -63,6 +70,8 @@
             {#if $sttTranscript.finalized}
                 <div class="transcript-actions">
                     <MaterialButton icon="copy" title="actions.copy" style="padding: 10px;" on:click={() => Transcript.copy()} />
+                    <!-- Graceville: clear the transcript and its suggestions -->
+                    <MaterialButton icon="clear" title="clear.all" style="padding: 10px;" on:click={clearAll} />
                 </div>
             {/if}
         </div>
@@ -163,6 +172,8 @@
         position: absolute;
         bottom: 8px;
         right: 10px;
+        display: flex;
+        gap: 4px;
     }
 
     .interim {

@@ -6,10 +6,11 @@ import { startScripture } from "../../components/actions/apiHelper"
 import { keysToID } from "../../components/helpers/array"
 import { getFirstActiveOutput } from "../../components/helpers/output"
 import { setActiveScripture } from "../../converters/bible"
-import { ai, aiSmartAction, aiSuggestions, drawerTabsData, outputs, scriptures } from "../../stores"
+import { activeDrawerTab, ai, aiSmartAction, aiSuggestions, drawerTabsData, openScripture, outputs, scriptures } from "../../stores"
 import { newToast } from "../../utils/common"
 import { getLLMManager } from "../llm/llmManager"
 import { BibleCacheManager } from "../scripture/BibleCacheManager"
+import { isSameOrLessPrecise, type FollowTarget } from "../scripture/graceville/liveFollow"
 import { detectBibleVersion } from "../scripture/BibleVersionDetector"
 import { isReferenceWithin } from "../scripture/references"
 
@@ -24,14 +25,30 @@ export class AiManager {
         const searchId = ++this.latestSearchId
         const isCancelled = () => searchId !== this.latestSearchId
 
+        // Graceville: move the Scripture panel along with the preacher straight away ("Jeremiah" -> "29" -> ...)
+        const detector = await this.getActiveDetector()
+        const followTarget = detector?.followTarget(chunk.chunkWithOverlap) || null
+        if (followTarget && followTarget.verse === null) this.followPreacher(followTarget)
+
         const stringMatch = await this.stringDetection(chunk.chunkWithOverlap, isCancelled)
         if (isCancelled()) return
 
         if (stringMatch) {
             this.newMatch(stringMatch)
             this.lastMatch = Date.now()
+
+            if (stringMatch.type === "scripture" && this.liveContent === stringMatch.content) {
+                // it was put on screen, and the app already moved the panel to it: remember where we are
+                this.lastAutoPlayAt = Date.now()
+                this.rememberFollowed(detector?.followTarget(stringMatch.content) || followTarget)
+            } else if (followTarget) {
+                // only suggested: still select the verse in the panel so the media team is ready
+                this.followPreacher(followTarget)
+            }
             return
         }
+
+        if (followTarget && followTarget.verse !== null) this.followPreacher(followTarget)
 
         if (this.lastMatch && Date.now() - this.lastMatch < this.MAX_LLM_REQUEST_AFTER_MATCH) return
 
@@ -45,6 +62,44 @@ export class AiManager {
             this.lastMatch = Date.now()
         }
     }
+
+    // ----- Graceville: live follow -----
+
+    private static lastFollowed: FollowTarget | null = null
+    private static lastFollowedAt = 0
+    private static lastAutoPlayAt = 0
+    private static readonly FOLLOW_MEMORY_MS = 60 * 1000 // after a minute, the same place may be opened again
+    private static readonly AUTO_PLAY_QUIET_MS = 1500 // never move the panel while a verse is being put on screen
+
+    private static async getActiveDetector() {
+        const activeBibleId = get(drawerTabsData)?.scripture?.activeSubTab
+        if (!activeBibleId || get(scriptures)[activeBibleId]?.api) return null
+
+        try {
+            return await BibleCacheManager.getCache(activeBibleId)
+        } catch {
+            return null
+        }
+    }
+
+    private static rememberFollowed(target: FollowTarget | null) {
+        if (!target) return
+        this.lastFollowed = target
+        this.lastFollowedAt = Date.now()
+    }
+
+    private static followPreacher(target: FollowTarget) {
+        if (get(activeDrawerTab) !== "scripture") return // the media team is working in another tab
+        if (Date.now() - this.lastAutoPlayAt < this.AUTO_PLAY_QUIET_MS) return
+
+        const recent = Date.now() - this.lastFollowedAt < this.FOLLOW_MEMORY_MS
+        if (recent && isSameOrLessPrecise(this.lastFollowed, target)) return
+
+        this.rememberFollowed(target)
+        openScripture.set({ book: target.bookNumber, chapter: target.chapter ?? 1, verses: [[target.verse ?? 1]], play: false })
+    }
+
+    // ----- -----
 
     private static async stringDetection(textChunk: string, isCancelled?: () => boolean) {
         const scriptureMatch = await this.globalBibleDetection(textChunk, isCancelled)

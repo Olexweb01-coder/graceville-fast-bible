@@ -64,6 +64,14 @@ export class Transcript {
         newToast("actions.copied")
     }
 
+    // Graceville: start the transcript afresh (e.g. after background chatter was picked up)
+    static clear() {
+        if (this.interimTimeout) clearTimeout(this.interimTimeout)
+        this.interimTimeout = null
+        this.resetState()
+        sttTranscript.set({ finalized: "", unprocessed: "" })
+    }
+
     private static processPendingChunk() {
         const chunk = this.getTranscriptChunk()
         if (chunk.newWordsCount === 0) return

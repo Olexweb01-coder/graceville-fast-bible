@@ -4,10 +4,16 @@ import { normalizeMishearings } from "./mishearings"
 import { normalizeNumbers } from "./numbers"
 import { normalizeBookName, RANGE_PATTERN, VERSE_PATTERN } from "./referenceDictionary"
 import { normalizeReferences } from "./references"
+import { findFollowTarget, type FollowTarget } from "./graceville/liveFollow"
 import { AUTO_SHOW_CONFIDENCE, capInferredConfidence, findNextVerseRequest, hasSpokenVerseNumber, joinAdjacentVerses, prepareSpokenReferences, refineSpokenReferences } from "./graceville/spokenReferences"
 
 export class BibleSearchDetector {
     constructor(private cacheData: BibleCacheData) {}
+
+    // Graceville: the book / chapter / verse the preacher is naming right now (for live follow)
+    public followTarget(transcript: string): FollowTarget | null {
+        return findFollowTarget(transcript, this.cacheData)
+    }
 
     public findReferenceMatch(cleanInput: string): MatchResult | null {
         if (!this.cacheData.refRegex) return null
@@ -503,6 +509,11 @@ export class BibleSearchDetector {
         const refMatch = explicitMatch || followUpMatch || findNextVerseRequest(transcript, currentlyOutputted, this.cacheData)
 
         if (this.DEBUG_MODE) console.log("[DETECTION] Reference match result:", refMatch)
+
+        // Graceville: a spoken reference wins anyway, so return it straight away. Searching the whole Bible for quoted
+        // words first made it wait, and while the preacher kept talking that search was cancelled again and again,
+        // throwing the found reference away until he paused.
+        if (refMatch && refMatch.confidence >= 75) return refMatch
 
         if (isCancelled?.()) return null
 

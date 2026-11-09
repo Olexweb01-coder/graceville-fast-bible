@@ -17,6 +17,8 @@ export interface BibleCacheData {
     verseTokensOffsets: Uint32Array
     verseTokens: Uint32Array
     bookNames: string[]
+    // Graceville: book name (lowercase) -> book number, so live-follow can open the book in the Scripture panel
+    bookNumbers?: Map<string, number>
     refRegex: RegExp | null
     totalVerses: number
 }
@@ -111,6 +113,7 @@ export class BibleCacheManager {
         const vocabPool: string[] = []
         const vocabToIdMap: Map<string, number> = new Map()
         const bookNames: string[] = []
+        const bookNumbers: Map<string, number> = new Map()
         let totalVerses = 0
 
         const tempPostingsMap: Map<number, number[]> = new Map()
@@ -128,6 +131,7 @@ export class BibleCacheManager {
         // Pass 1: Build verse pool and reference indices asynchronously
         for (const book of bible.books) {
             bookNames.push(book.name)
+            bookNumbers.set(book.name.toLowerCase(), Number(book.number))
             for (const chapter of book.chapters) {
                 const refKey = `${book.name.toLowerCase()} ${chapter.number}`
                 const startVerseId = totalVerses
@@ -241,6 +245,7 @@ export class BibleCacheManager {
             verseTokensOffsets,
             verseTokens,
             bookNames,
+            bookNumbers,
             refRegex,
             totalVerses
         }

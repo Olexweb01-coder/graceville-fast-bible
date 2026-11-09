@@ -13,10 +13,12 @@ export function buildTestCache(renameBooks: Record<string, string> = {}): BibleC
     const verseToIdMap: Map<string, number> = new Map()
     const versePool: string[] = []
     const bookNames: string[] = []
+    const bookNumbers: Map<string, number> = new Map()
 
     for (const [originalName, chapters] of Object.entries(KJV_VERSE_COUNTS)) {
         const bookName = renameBooks[originalName] || originalName
         bookNames.push(bookName)
+        bookNumbers.set(bookName.toLowerCase(), bookNames.length)
 
         chapters.forEach((verseCount, index) => {
             const chapterNumber = index + 1
@@ -48,6 +50,7 @@ export function buildTestCache(renameBooks: Record<string, string> = {}): BibleC
         verseTokensOffsets: new Uint32Array(versePool.length + 1),
         verseTokens: new Uint32Array(),
         bookNames,
+        bookNumbers,
         refRegex,
         totalVerses: versePool.length
     }
