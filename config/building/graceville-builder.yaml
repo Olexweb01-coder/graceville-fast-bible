@@ -1,6 +1,7 @@
 # Graceville Fast Bible installer.
 # Builds on FreeShow's own settings, but with its own name and app ID, so it installs NEXT TO a real
 # FreeShow (never over it) and keeps its own settings and data folder.
+# Build with: node scripts/graceville/buildInstaller.js
 
 extends: config/building/electron-builder.yaml
 
@@ -8,11 +9,27 @@ appId: org.graceville.fastbible
 productName: Graceville Fast Bible
 artifactName: Graceville-Fast-Bible-Setup-${version}.${ext}
 
-# The app's runtime name decides where its settings live (%APPDATA%\Graceville Fast Bible)
+# The app's runtime name decides where its settings live (%APPDATA%\Graceville Fast Bible).
+# The package name decides the self-update download cache (%LOCALAPPDATA%\graceville-fast-bible-updater),
+# so it is never shared with a real FreeShow on the same computer.
 extraMetadata:
+    name: graceville-fast-bible
     productName: Graceville Fast Bible
 
-publish: null
+# Speed: the C++ parts are already compiled for the app by "npm ci", so don't check them again on every build.
+# (Run "npm ci" again if they ever need rebuilding.)
+npmRebuild: false
+
+# Speed: no heavy compression. The installer file is bigger, but it builds much faster,
+# and self-updates only need to download the parts that changed.
+compression: store
+
+# Self-updates come from this project's own GitHub Releases (see src/electron/utils/updater.ts)
+publish:
+    provider: github
+    owner: Olexweb01-coder
+    repo: graceville-fast-bible
+    releaseType: release
 
 win:
     # FreeShow signs with its own certificate; Graceville builds are not signed

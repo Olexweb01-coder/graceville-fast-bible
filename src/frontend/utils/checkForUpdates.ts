@@ -29,8 +29,11 @@ export async function getUpdateData(currentVersion: string, includeBeta: boolean
     }
 }
 
+// Graceville: updates install silently when the app is closed (see src/electron/utils/updater.ts), so no popup
+const GRACEVILLE_UPDATE_POPUP = false
+
 export function checkForUpdates(currentVersion: string) {
-    if (get(isDev) || get(alertUpdates) === false) return
+    if (!GRACEVILLE_UPDATE_POPUP || get(isDev) || get(alertUpdates) === false) return
     const includeBeta = currentVersion.includes("-beta") || get(special).betaVersionAlert
 
     getUpdateData(currentVersion, includeBeta)

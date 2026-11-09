@@ -5,8 +5,11 @@ const MEASUREMENT_ID = "G-CEE6P1QXG6"
 const API_SECRET = atob("YlVwZE42bXpRVjYyWDc2d0Z3OGMwZw==")
 const SESSION_ID = Date.now().toString()
 
+// Graceville: off. These statistics go to FreeShow's own Google Analytics account with FreeShow's key.
+const GRACEVILLE_ANALYTICS = false
+
 function trackEvent(eventName: string, params?: Record<string, any>) {
-    if (get(isDev)) return
+    if (!GRACEVILLE_ANALYTICS || get(isDev)) return
 
     const clientId = get(deviceId)
     if (!clientId) return

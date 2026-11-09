@@ -26,6 +26,7 @@ import { applyGraphicsDeviceSelection, scheduleGpuHealthCheck } from "./utils/gp
 import { isDraggableAreaVisible, isWithinDisplayBounds, mainWindowInitialize, openDevTools, parseCommandLineArgs } from "./utils/init"
 import { template } from "./utils/menuTemplate"
 import { spellcheck } from "./utils/spellcheck"
+import { startGracevilleUpdates } from "./utils/updater"
 import { loadingOptions, mainOptions } from "./utils/windowOptions"
 
 // ----- STARTUP -----
@@ -170,6 +171,9 @@ async function startApp() {
     if (RECORD_STARTUP_TIME) console.timeEnd("Initial")
 
     createMain()
+
+    // Graceville: silent self-updates (download in the background, install only when the app is closed)
+    startGracevilleUpdates()
 
     // prevent display sleeping
     powerSaveBlockerId = powerSaveBlocker.start("prevent-display-sleep")
