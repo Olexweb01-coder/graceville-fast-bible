@@ -30,6 +30,22 @@ function git(command) {
     return execSync(`git ${command}`, { cwd: root, encoding: "utf8" }).trim()
 }
 
+// Files the build itself rewrites (FreeShow's preBuild.js copies the PDF worker from node_modules).
+// They are put back after every build and never count as "your" changes.
+const BUILD_GENERATED_FILES = ["public/assets/pdf.worker.min.mjs"]
+
+function restoreBuildGeneratedFiles() {
+    for (const file of BUILD_GENERATED_FILES) {
+        try {
+            git(`checkout -- "${file}"`)
+        } catch (err) {
+            console.warn(`Could not restore ${file}:`, err.message)
+        }
+    }
+}
+
+restoreBuildGeneratedFiles()
+
 const now = new Date()
 const commitCount = Number(git("rev-list --count HEAD"))
 const version = `${now.getFullYear()}.${now.getMonth() + 1}.${commitCount}`
@@ -67,6 +83,7 @@ if (ok) {
 
 // always restore the project to development mode, even if a step failed
 run("3/3 Cleaning up build files", "node scripts/cleanBuilds.js")
+restoreBuildGeneratedFiles()
 
 const installer = ok ? newestInstaller() : null
 const minutes = ((Date.now() - started) / 60000).toFixed(1)
