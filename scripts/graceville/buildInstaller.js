@@ -153,6 +153,11 @@ async function main() {
       if (!ok) throw new Error("packaging failed");
       await github.publishDraft(draftId, version);
       console.log(`Release v${version} is now public.`);
+      await github
+        .removeOlderReleases(draftId)
+        .catch((err) =>
+          console.warn(`Could not remove old releases: ${err.message}`),
+        );
     } catch (err) {
       console.error(`\x1b[31mNot published: ${err.message}\x1b[0m`);
       ok = false;
@@ -188,7 +193,7 @@ function finish(ok) {
     process.exit(0);
   } else {
     console.log(
-      `\n\x1b[31mBUILD FAILED after ${minutes} min - send the red text above to Claude.\x1b[0m\n`,
+      `\n\x1b[31mBUILD FAILED after ${minutes} min - see the red text above.\x1b[0m\n`,
     );
     process.exit(1);
   }

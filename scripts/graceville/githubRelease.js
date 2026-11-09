@@ -117,6 +117,16 @@ function createGitHub({ token, owner, repo, request = globalThis.fetch }) {
       });
     },
 
+    /** Keeps only the newest release: installed apps only ever need the latest one. */
+    async removeOlderReleases(keepId) {
+      let releases = await listReleases();
+      for (const release of releases.filter((other) => other.id !== keepId)) {
+        releases = releases.filter((other) => other.id !== release.id);
+        await deleteRelease(release, releases);
+        console.log(`Removed old release ${release.tag_name}`);
+      }
+    },
+
     async deleteDraft(id) {
       await call("DELETE", `/releases/${id}`);
     },
