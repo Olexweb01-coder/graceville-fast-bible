@@ -1,35 +1,19 @@
 import path from "path"
 import type { DriverCallbacks, TranscriberSegment, TranscriptionDriver } from "../sttHelper"
 import { findRepeatedTail, isMusicAnnotation, segmentConfidence } from "../sttHelper"
+import { SPEED_WINDOW_SECONDS, VOICE_PROFILES, type VoiceProfile, type VoiceProfileId } from "./voiceProfiles"
 
-const NEMOTRON_FILES = {
-    encoder: "encoder.int8.onnx",
-    decoder: "decoder.int8.onnx",
-    joiner: "joiner.int8.onnx",
-    tokens: "tokens.txt",
-    vad: "silero_vad.onnx"
-} as const
-
-export type NemotronWorkerRequest = { type: "start"; language?: string; decodeLanguage?: string; modelDir?: string } | { type: "audio"; data: Uint8Array } | { type: "stop" }
-export type NemotronWorkerResponse = { type: "ready" } | { type: "segment"; segment: TranscriberSegment } | { type: "interim"; text: string } | { type: "error"; message: string } | { type: "stopped" } | { type: "alive" }
+export type NemotronWorkerRequest = { type: "start"; language?: string; decodeLanguage?: string; modelDir?: string; profile?: VoiceProfileId } | { type: "audio"; data: Uint8Array } | { type: "stop" }
+export type NemotronWorkerResponse = { type: "ready" } | { type: "segment"; segment: TranscriberSegment } | { type: "interim"; text: string } | { type: "error"; message: string } | { type: "stopped" } | { type: "alive" } | { type: "speed"; ratio: number }
 
 const SAMPLE_RATE = 16000
-
-// the export's encoder grid: one step per 1120ms of audio, 12.5 decoder frames per second
-const CHUNK_SHIFT_MS = 1120
-const FRAMES_PER_SECOND = 12.5
-// silence pushed at stop() so the audio after the last encoder step is still decoded
-const FLUSH_SAMPLES = Math.ceil(((CHUNK_SHIFT_MS + 100) / 1000) * SAMPLE_RATE)
+const SPEED_WINDOW_SAMPLES = SPEED_WINDOW_SECONDS * SAMPLE_RATE
 
 const VAD_THRESHOLD = 0.3
 const VAD_MIN_SILENCE = 0.8
 const VAD_MIN_SPEECH = 0.15
 const VAD_MAX_SPEECH = 30
 const MAX_UTTERANCE_SAMPLES = VAD_MAX_SPEECH * SAMPLE_RATE
-
-// decoder frames with no token: after the first the trailing word is settled, after the second the speaker is done
-const COMMIT_TRAILING_BLANKS = Math.round(VAD_MIN_SILENCE * FRAMES_PER_SECOND)
-const CLOSE_TRAILING_BLANKS = Math.round(2.5 * FRAMES_PER_SECOND)
 
 interface Hypothesis {
     text: string
@@ -38,10 +22,18 @@ interface Hypothesis {
     blanks: number
 }
 
-type NemotronOptions = DriverCallbacks & { language?: string; decodeLanguage?: string; modelDir?: string; sherpa?: any }
+type NemotronOptions = DriverCallbacks & { language?: string; decodeLanguage?: string; modelDir?: string; profile?: VoiceProfileId; sherpa?: any; onSpeed?: (ratio: number) => void }
 
 export class NemotronDriver implements TranscriptionDriver {
     private options: NemotronOptions
+    private profile: VoiceProfile
+    // decoder frames with no token: after the first the trailing word is settled, after the second the speaker is done
+    private commitTrailingBlanks: number
+    private closeTrailingBlanks: number
+    // silence pushed at stop() so the audio after the last encoder step is still decoded
+    private flushSamples: number
+    private speedSamples = 0
+    private speedBusyMs = 0
     private recognizer: any = null
     private vad: any = null
     private stream: any = null
@@ -57,6 +49,10 @@ export class NemotronDriver implements TranscriptionDriver {
 
     constructor(options: NemotronOptions) {
         this.options = options
+        this.profile = VOICE_PROFILES[options.profile || "full"]
+        this.commitTrailingBlanks = Math.round(VAD_MIN_SILENCE * this.profile.framesPerSecond)
+        this.closeTrailingBlanks = Math.round(2.5 * this.profile.framesPerSecond)
+        this.flushSamples = Math.ceil(((this.profile.chunkShiftMs + 100) / 1000) * SAMPLE_RATE)
     }
 
     async start(): Promise<void> {
@@ -65,17 +61,18 @@ export class NemotronDriver implements TranscriptionDriver {
         const sherpa = this.options.sherpa || require("sherpa-onnx-node")
         const { modelDir } = this.options
         if (!modelDir) throw new Error("Nemotron model files are missing")
+        const files = this.profile.files
 
         this.recognizer = new sherpa.OnlineRecognizer({
-            featConfig: { sampleRate: SAMPLE_RATE, featureDim: 128 },
+            featConfig: { sampleRate: SAMPLE_RATE, featureDim: this.profile.featureDim },
             modelConfig: {
                 transducer: {
-                    encoder: path.join(modelDir, NEMOTRON_FILES.encoder),
-                    decoder: path.join(modelDir, NEMOTRON_FILES.decoder),
-                    joiner: path.join(modelDir, NEMOTRON_FILES.joiner)
+                    encoder: path.join(modelDir, files.encoder),
+                    decoder: path.join(modelDir, files.decoder),
+                    joiner: path.join(modelDir, files.joiner)
                 },
-                tokens: path.join(modelDir, NEMOTRON_FILES.tokens),
-                numThreads: 2,
+                tokens: path.join(modelDir, files.tokens),
+                numThreads: this.profile.numThreads,
                 provider: "cpu"
             },
             decodingMethod: "greedy_search",
@@ -84,12 +81,12 @@ export class NemotronDriver implements TranscriptionDriver {
 
         this.stream = this.recognizer.createStream()
         if (typeof this.stream.setOption !== "function") throw new Error("sherpa-onnx-node 1.13.7 or newer is required")
-        if (this.options.decodeLanguage) this.stream.setOption("language", this.options.decodeLanguage)
+        if (this.profile.usesLanguage && this.options.decodeLanguage) this.stream.setOption("language", this.options.decodeLanguage)
 
         this.vad = new sherpa.Vad(
             {
                 sileroVad: {
-                    model: path.join(modelDir, NEMOTRON_FILES.vad),
+                    model: path.join(modelDir, files.vad),
                     threshold: VAD_THRESHOLD,
                     minSilenceDuration: VAD_MIN_SILENCE,
                     minSpeechDuration: VAD_MIN_SPEECH,
@@ -126,6 +123,7 @@ export class NemotronDriver implements TranscriptionDriver {
         const samples = int16ToFloat32(buffer)
         if (!samples.length) return
 
+        const startedAt = performance.now()
         try {
             this.vad.acceptWaveform(samples)
 
@@ -150,7 +148,7 @@ export class NemotronDriver implements TranscriptionDriver {
 
             if (!this.inUtterance) {
                 // clear the predictor only in a silence the decoder itself has confirmed
-                if (hypothesis.text && hypothesis.blanks >= CLOSE_TRAILING_BLANKS) this.resetDecoder()
+                if (hypothesis.text && hypothesis.blanks >= this.closeTrailingBlanks) this.resetDecoder()
                 return
             }
 
@@ -159,12 +157,26 @@ export class NemotronDriver implements TranscriptionDriver {
             const settledBlanks = produced ? hypothesis.blanks : hypothesis.blanks - this.blanksAtOpen
             const overLong = this.totalSamples - this.utteranceStartSample >= MAX_UTTERANCE_SAMPLES && hypothesis.blanks >= 1
 
-            if (settledBlanks >= CLOSE_TRAILING_BLANKS) this.closeUtterance(hypothesis, produced)
+            if (settledBlanks >= this.closeTrailingBlanks) this.closeUtterance(hypothesis, produced)
             else if (overLong) this.splitUtterance(hypothesis)
-            else this.emitFromHypothesis(hypothesis, settledBlanks >= COMMIT_TRAILING_BLANKS ? "settled" : "growing")
+            else this.emitFromHypothesis(hypothesis, settledBlanks >= this.commitTrailingBlanks ? "settled" : "growing")
         } catch (err) {
             this.options.onError(String((err as Error)?.message || err))
+        } finally {
+            this.measureSpeed(samples.length, performance.now() - startedAt)
         }
+    }
+
+    /** Reports how much processor time decoding needs compared to the length of the audio. */
+    private measureSpeed(samples: number, busyMs: number) {
+        this.speedSamples += samples
+        this.speedBusyMs += busyMs
+        if (this.speedSamples < SPEED_WINDOW_SAMPLES) return
+
+        const ratio = this.speedBusyMs / ((this.speedSamples / SAMPLE_RATE) * 1000)
+        this.speedSamples = 0
+        this.speedBusyMs = 0
+        this.options.onSpeed?.(Math.round(ratio * 1000) / 1000)
     }
 
     private currentMs = () => Math.round((this.totalSamples / SAMPLE_RATE) * 1000)
@@ -181,7 +193,7 @@ export class NemotronDriver implements TranscriptionDriver {
 
     private flushTail() {
         if (!this.recognizer || !this.stream) return
-        this.stream.acceptWaveform({ sampleRate: SAMPLE_RATE, samples: new Float32Array(FLUSH_SAMPLES) })
+        this.stream.acceptWaveform({ sampleRate: SAMPLE_RATE, samples: new Float32Array(this.flushSamples) })
         while (this.recognizer.isReady(this.stream)) this.recognizer.decode(this.stream)
     }
 
@@ -283,6 +295,8 @@ if (parentPort) {
                     language: data.language,
                     decodeLanguage: data.decodeLanguage,
                     modelDir: data.modelDir,
+                    profile: data.profile,
+                    onSpeed: (ratio) => post({ type: "speed", ratio }),
                     onSegment: (segment) => post({ type: "segment", segment }),
                     onInterim: (text) => post({ type: "interim", text }),
                     onError: (message) => post({ type: "error", message })

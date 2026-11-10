@@ -1,8 +1,9 @@
 import path from "path"
 import type { SttEngineOptions } from "../../../../types/ai/AiSettings"
-import { LocalModelManager } from "../../setup/LocalModelManager"
 import type { TranscriberSegment } from "../sttHelper"
+import { chooseVoiceModel, getLightModelDir, reportSpeed } from "../voiceChoice"
 import { NemotronDriver, type NemotronWorkerRequest, type NemotronWorkerResponse } from "./nemotronWorker"
+import type { VoiceProfileId } from "./voiceProfiles"
 
 const WORKER_START_TIMEOUT = 30000
 const WORKER_FLUSH_TIMEOUT = 3000
@@ -27,6 +28,7 @@ export class NemotronTranscriber {
     private stallTimer: NodeJS.Timeout | null = null
     private restarting = false
     private modelDir = ""
+    private profile: VoiceProfileId = "light"
 
     constructor(options: SttEngineOptions, onSegment: (segment: TranscriberSegment) => void, onError: (message: string) => void, onInterim?: (text: string) => void) {
         this.options = options
@@ -36,7 +38,12 @@ export class NemotronTranscriber {
     }
 
     async start() {
-        this.modelDir = LocalModelManager.getModelDir("nemotron")
+        const choice = await chooseVoiceModel()
+        if (!choice) throw new Error("The voice model is missing. Please reinstall Graceville Fast Bible.")
+        this.profile = choice.profile
+        this.modelDir = choice.modelDir
+        console.info(`[voice] Listening with the ${this.profile} voice model`)
+
         if (await this.startWorker()) return true
         if (this.startErrorMessage) throw new Error(this.startErrorMessage)
 
@@ -44,6 +51,8 @@ export class NemotronTranscriber {
             language: this.options.language || "en",
             decodeLanguage: this.options.language,
             modelDir: this.modelDir,
+            profile: this.profile,
+            onSpeed: (ratio) => this.handleSpeed(ratio),
             onSegment: this.onSegment,
             onInterim: this.onInterim,
             onError: this.onError
@@ -97,7 +106,7 @@ export class NemotronTranscriber {
         try {
             const { utilityProcess } = require("electron") as typeof import("electron")
             if (!utilityProcess?.fork) return false
-            child = utilityProcess.fork(path.join(__dirname, "./nemotronWorker.js"), [], { serviceName: "FreeShow AI transcription" })
+            child = utilityProcess.fork(path.join(__dirname, "./nemotronWorker.js"), [], { serviceName: "Graceville Fast Bible listening" })
         } catch (err) {
             console.error("[nemotron] Could not spawn the decode process:", err)
             return false
@@ -116,7 +125,7 @@ export class NemotronTranscriber {
             if (!this.stopped) this.onError(`Nemotron transcription process exited unexpectedly (code ${code})`)
         })
 
-        this.post(child, { type: "start", language: this.options.language || "en", decodeLanguage: this.options.language, modelDir: this.modelDir })
+        this.post(child, { type: "start", language: this.options.language || "en", decodeLanguage: this.options.language, modelDir: this.modelDir, profile: this.profile })
 
         const ok = await new Promise<boolean>((resolve) => {
             const timer = setTimeout(() => {
@@ -147,6 +156,7 @@ export class NemotronTranscriber {
             segment: () => message.type === "segment" && this.onSegment(message.segment),
             interim: () => message.type === "interim" && this.onInterim?.(message.text),
             ready: () => this.readyResolve?.(true),
+            speed: () => message.type === "speed" && this.handleSpeed(message.ratio),
             stopped: () => this.stoppedResolve?.(),
             error: () => {
                 if (message.type !== "error") return
@@ -160,6 +170,42 @@ export class NemotronTranscriber {
         }
 
         handlers[message.type]?.()
+    }
+
+    private handleSpeed(ratio: number) {
+        if (this.stopped || !reportSpeed(this.profile, ratio)) return
+        void this.switchToLight()
+    }
+
+    /** The full model cannot keep up on this PC: continue with the light model (a short pause of a second or two). */
+    private async switchToLight() {
+        if (this.profile === "light" || this.restarting) return
+        this.restarting = true
+        this.profile = "light"
+        this.modelDir = getLightModelDir()
+
+        try {
+            if (this.fallback) {
+                await this.fallback.stop()
+                this.fallback = new NemotronDriver({ language: this.options.language || "en", decodeLanguage: this.options.language, modelDir: this.modelDir, profile: this.profile, onSpeed: (r) => this.handleSpeed(r), onSegment: this.onSegment, onInterim: this.onInterim, onError: this.onError })
+                await this.fallback.start()
+                return
+            }
+
+            const { child } = this
+            this.child = null
+            try {
+                child?.kill()
+            } catch {
+                // already closed
+            }
+            this.onInterim?.("")
+
+            const ok = await this.startWorker()
+            if (!ok && !this.stopped) this.onError(this.startErrorMessage || "Could not switch to the light voice model")
+        } finally {
+            this.restarting = false
+        }
     }
 
     private post(child: Electron.UtilityProcess, message: NemotronWorkerRequest) {

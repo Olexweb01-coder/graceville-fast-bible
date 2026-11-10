@@ -62,6 +62,9 @@ export class LocalModelManager {
             const modelDir = this.getModelDir(engineId)
             const integrity = await manager.checkIntegrity(modelDir)
             if (integrity === "ok") return { ready: true, localPath: modelDir }
+            // Graceville: the light voice model is part of the installer, so listening works without any download
+            const { getLightModelDir, isLightModelAvailable } = require("../stt/voiceChoice")
+            if (isLightModelAvailable()) return { ready: true, localPath: getLightModelDir() }
             return { ready: false, error: `The local model is ${integrity}` }
         }
 

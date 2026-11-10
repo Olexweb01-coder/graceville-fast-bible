@@ -8,6 +8,7 @@
 
 import type { MatchResult } from "../../../../types/ai/Ai"
 import type { BibleCacheData } from "../BibleCacheManager"
+import { correctBookNames } from "./bookNames"
 import { HUNDREDS_WORDS, ORDINAL_UNIT_WORDS, SPECIAL_COMPLEX_NUMBERS, TEEN_WORDS, TENS_WORDS, UNIT_WORDS } from "../numberDictionary"
 
 // English number words stay numbers. Number words from the other supported languages are switched off,
@@ -43,6 +44,9 @@ export function prepareSpokenReferences(text: string): string {
 
     // "Revelations" -> "Revelation" (also handled by mishearings, kept here so the raw path works too)
     prepared = prepared.replace(/\brevelations\b/giu, "revelation")
+
+    // "habukakh chapter 2 verse 3" -> "habakkuk chapter 2 verse 3" (only right before a chapter and verse)
+    prepared = correctBookNames(prepared)
 
     return prepared
 }

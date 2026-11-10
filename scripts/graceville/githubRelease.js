@@ -10,127 +10,99 @@
 //   3. only when all files are there is the draft published, so installed apps never see a half release
 //   (if anything fails, the draft is deleted again)
 
-const API = "https://api.github.com";
-const REQUIRED_FILES = (version) => [
-  "latest.yml",
-  `Graceville-Fast-Bible-Setup-${version}.exe`,
-  `Graceville-Fast-Bible-Setup-${version}.exe.blockmap`,
-];
+const API = "https://api.github.com"
+const REQUIRED_FILES = (version) => ["latest.yml", `Graceville-Fast-Bible-Setup-${version}.exe`, `Graceville-Fast-Bible-Setup-${version}.exe.blockmap`]
 
 function createGitHub({ token, owner, repo, request = globalThis.fetch }) {
-  async function call(method, path, body) {
-    const response = await request(`${API}/repos/${owner}/${repo}${path}`, {
-      method,
-      headers: {
-        Authorization: `Bearer ${token}`,
-        Accept: "application/vnd.github+json",
-        "X-GitHub-Api-Version": "2022-11-28",
-        "User-Agent": "graceville-fast-bible-builder",
-        ...(body ? { "Content-Type": "application/json" } : {}),
-      },
-      body: body ? JSON.stringify(body) : undefined,
-    });
-    if (
-      method === "DELETE" &&
-      (response.status === 404 || response.status === 422)
-    )
-      return null; // already gone
-    if (!response.ok)
-      throw new Error(
-        `GitHub ${method} ${path} failed: ${response.status} ${await response.text()}`,
-      );
-    return response.status === 204 ? null : response.json();
-  }
-
-  async function listReleases() {
-    const all = [];
-    for (let page = 1; page <= 10; page++) {
-      const releases = await call("GET", `/releases?per_page=100&page=${page}`);
-      all.push(...releases);
-      if (releases.length < 100) break;
+    async function call(method, path, body) {
+        const response = await request(`${API}/repos/${owner}/${repo}${path}`, {
+            method,
+            headers: {
+                Authorization: `Bearer ${token}`,
+                Accept: "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+                "User-Agent": "graceville-fast-bible-builder",
+                ...(body ? { "Content-Type": "application/json" } : {})
+            },
+            body: body ? JSON.stringify(body) : undefined
+        })
+        if (method === "DELETE" && (response.status === 404 || response.status === 422)) return null // already gone
+        if (!response.ok) throw new Error(`GitHub ${method} ${path} failed: ${response.status} ${await response.text()}`)
+        return response.status === 204 ? null : response.json()
     }
-    return all;
-  }
 
-  async function deleteRelease(release, remaining) {
-    await call("DELETE", `/releases/${release.id}`);
-    // the tag goes too, unless another (good) release still uses it
-    const tagStillUsed = remaining.some(
-      (other) => other.id !== release.id && other.tag_name === release.tag_name,
-    );
-    if (!release.draft && !tagStillUsed)
-      await call(
-        "DELETE",
-        `/git/refs/tags/${encodeURIComponent(release.tag_name)}`,
-      );
-  }
+    async function listReleases() {
+        const all = []
+        for (let page = 1; page <= 10; page++) {
+            const releases = await call("GET", `/releases?per_page=100&page=${page}`)
+            all.push(...releases)
+            if (releases.length < 100) break
+        }
+        return all
+    }
 
-  const hasUpdateInfo = (release) =>
-    (release.assets || []).some((asset) => asset.name === "latest.yml");
+    async function deleteRelease(release, remaining) {
+        await call("DELETE", `/releases/${release.id}`)
+        // the tag goes too, unless another (good) release still uses it
+        const tagStillUsed = remaining.some((other) => other.id !== release.id && other.tag_name === release.tag_name)
+        if (!release.draft && !tagStillUsed) await call("DELETE", `/git/refs/tags/${encodeURIComponent(release.tag_name)}`)
+    }
 
-  return {
-    /** Removes published releases without latest.yml (they break self-updates) and any old copy of this version. */
-    async cleanUp(tag) {
-      let releases = await listReleases();
-      const broken = releases.filter(
-        (release) => release.tag_name === tag || !hasUpdateInfo(release),
-      );
-      for (const release of broken) {
-        releases = releases.filter((other) => other.id !== release.id);
-        await deleteRelease(release, releases);
-        console.log(
-          `Removed ${release.draft ? "draft" : "broken release"} ${release.tag_name}`,
-        );
-      }
-      // an old tag of this version without a release (from a failed run)
-      if (!releases.some((release) => release.tag_name === tag))
-        await call("DELETE", `/git/refs/tags/${encodeURIComponent(tag)}`);
-      return broken.length;
-    },
+    const hasUpdateInfo = (release) => (release.assets || []).some((asset) => asset.name === "latest.yml")
 
-    async createDraft(tag, version, commit) {
-      const release = await call("POST", "/releases", {
-        tag_name: tag,
-        target_commitish: commit,
-        name: version,
-        body: `Graceville Fast Bible ${version}`,
-        draft: true,
-        prerelease: false,
-      });
-      return release.id;
-    },
+    return {
+        /** Removes published releases without latest.yml (they break self-updates) and any old copy of this version. */
+        async cleanUp(tag) {
+            let releases = await listReleases()
+            const broken = releases.filter((release) => release.tag_name === tag || !hasUpdateInfo(release))
+            for (const release of broken) {
+                releases = releases.filter((other) => other.id !== release.id)
+                await deleteRelease(release, releases)
+                console.log(`Removed ${release.draft ? "draft" : "broken release"} ${release.tag_name}`)
+            }
+            // an old tag of this version without a release (from a failed run)
+            if (!releases.some((release) => release.tag_name === tag)) await call("DELETE", `/git/refs/tags/${encodeURIComponent(tag)}`)
+            return broken.length
+        },
 
-    /** Publishes the draft, but only if every file installed apps need is in it. */
-    async publishDraft(id, version) {
-      const release = await call("GET", `/releases/${id}`);
-      const names = (release.assets || [])
-        .filter((asset) => asset.state === "uploaded")
-        .map((asset) => asset.name);
-      const missing = REQUIRED_FILES(version).filter(
-        (name) => !names.includes(name),
-      );
-      if (missing.length)
-        throw new Error(`The release is missing: ${missing.join(", ")}`);
-      await call("PATCH", `/releases/${id}`, {
-        draft: false,
-        make_latest: "true",
-      });
-    },
+        async createDraft(tag, version, commit) {
+            const release = await call("POST", "/releases", {
+                tag_name: tag,
+                target_commitish: commit,
+                name: version,
+                body: `Graceville Fast Bible ${version}`,
+                draft: true,
+                prerelease: false
+            })
+            return release.id
+        },
 
-    /** Keeps only the newest release: installed apps only ever need the latest one. */
-    async removeOlderReleases(keepId) {
-      let releases = await listReleases();
-      for (const release of releases.filter((other) => other.id !== keepId)) {
-        releases = releases.filter((other) => other.id !== release.id);
-        await deleteRelease(release, releases);
-        console.log(`Removed old release ${release.tag_name}`);
-      }
-    },
+        /** Publishes the draft, but only if every file installed apps need is in it. */
+        async publishDraft(id, version) {
+            const release = await call("GET", `/releases/${id}`)
+            const names = (release.assets || []).filter((asset) => asset.state === "uploaded").map((asset) => asset.name)
+            const missing = REQUIRED_FILES(version).filter((name) => !names.includes(name))
+            if (missing.length) throw new Error(`The release is missing: ${missing.join(", ")}`)
+            await call("PATCH", `/releases/${id}`, {
+                draft: false,
+                make_latest: "true"
+            })
+        },
 
-    async deleteDraft(id) {
-      await call("DELETE", `/releases/${id}`);
-    },
-  };
+        /** Keeps only the newest release: installed apps only ever need the latest one. */
+        async removeOlderReleases(keepId) {
+            let releases = await listReleases()
+            for (const release of releases.filter((other) => other.id !== keepId)) {
+                releases = releases.filter((other) => other.id !== release.id)
+                await deleteRelease(release, releases)
+                console.log(`Removed old release ${release.tag_name}`)
+            }
+        },
+
+        async deleteDraft(id) {
+            await call("DELETE", `/releases/${id}`)
+        }
+    }
 }
 
-module.exports = { createGitHub, REQUIRED_FILES };
+module.exports = { createGitHub, REQUIRED_FILES }

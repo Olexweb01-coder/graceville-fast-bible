@@ -24,6 +24,12 @@ npmRebuild: false
 # and self-updates only need to download the parts that changed.
 compression: store
 
+# The light voice model (fetched by scripts/graceville/getVoiceModel.js) sits next to the app, outside the
+# app archive, because the speech engine has to read it as normal files. (Added to FreeShow's own list.)
+extraResources:
+    - from: resources/graceville/voice-light/
+      to: voice-light
+
 # Self-updates come from this project's own GitHub Releases (see src/electron/utils/updater.ts)
 publish:
     provider: github

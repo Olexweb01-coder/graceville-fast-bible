@@ -4,16 +4,14 @@
 //   - installs the built-in public-domain Bibles (KJV, BSB, WEB, ASV, BBE, YLT, Darby) and selects KJV
 //   - switches Smart listening on, picks the computer's default microphone, sets Auto present to "If confident"
 //   - opens the Scripture tab
-// Every start (while Smart is on): makes sure the voice model is downloaded (once, about 680 MB, needs internet),
-// never on a Sunday, then starts listening.
+// The voice model needs no setup: a light model is part of the installer, and on fast PCs the app itself
+// fetches the more accurate model in the background (see src/electron/ai/stt/voiceChoice.ts).
 
 import { get } from "svelte/store"
 import type { Bible } from "json-bible/lib/Bible"
-import { Main } from "../../types/IPC/Main"
 import { SpeechToText } from "../ai/stt/stt"
 import { setActiveScripture } from "../converters/bible"
-import { requestMain } from "../IPC/main"
-import { activeDrawerTab, activePopup, ai, drawerTabsData, mediaDownloads, scriptures, scripturesCache, special } from "../stores"
+import { activeDrawerTab, activePopup, ai, drawerTabsData, scriptures, scripturesCache, special } from "../stores"
 import { newToast } from "./common"
 import { save } from "./save"
 
@@ -30,9 +28,6 @@ export const BUNDLED_BIBLES = [
 ]
 const DEFAULT_BIBLE_ID = "graceville_kjv"
 
-const VOICE_ENGINE = "nemotron"
-const MODEL_CHECK_DELAY_MS = 15 * 1000
-
 let started = false
 
 export async function runGracevilleSetup() {
@@ -47,8 +42,6 @@ export async function runGracevilleSetup() {
     } catch (err) {
         console.error("[Graceville] Setup failed:", err)
     }
-
-    setTimeout(() => void ensureVoiceModel(), MODEL_CHECK_DELAY_MS)
 }
 
 async function firstTimeSetup() {
@@ -119,46 +112,6 @@ async function installBundledBibles(): Promise<number> {
     }
 
     return installed
-}
-
-// ----- voice model -----
-
-let modelDownloading = false
-
-async function ensureVoiceModel() {
-    if (!get(ai).enabled || modelDownloading) return
-    if (new Date().getDay() === 0) return // Sunday: never use the church's internet for a big download
-    if (get(mediaDownloads).get(VOICE_ENGINE)?.status === "downloading") return
-
-    try {
-        const status = await requestMain(Main.AI_GET_STATUS, { engineId: VOICE_ENGINE })
-        if (status?.[VOICE_ENGINE]?.ready) return
-
-        modelDownloading = true
-        newToast("Downloading the voice model for listening (one time only, about 680 MB)")
-
-        await requestMain(Main.AI_SETUP, { action: "download", engineId: VOICE_ENGINE }, undefined, 60 * 60 * 1000)
-
-        const after = await requestMain(Main.AI_GET_STATUS, { engineId: VOICE_ENGINE })
-        if (after?.[VOICE_ENGINE]?.ready) {
-            newToast("Voice model ready: listening has started")
-            restartListening()
-        } else {
-            newToast("Could not download the voice model. Please check the internet; it will try again next time the app opens")
-        }
-    } catch (err) {
-        console.warn("[Graceville] Voice model download failed:", err)
-        newToast("Could not download the voice model. Please check the internet; it will try again next time the app opens")
-    } finally {
-        modelDownloading = false
-    }
-}
-
-/** Listening only starts when Smart is switched on, so switch it off and on again once the model is there. */
-function restartListening() {
-    if (!get(ai).enabled) return
-    ai.update((a) => ({ ...a, enabled: false }))
-    setTimeout(() => ai.update((a) => ({ ...a, enabled: true })), 500)
 }
 
 function wait(ms: number) {
