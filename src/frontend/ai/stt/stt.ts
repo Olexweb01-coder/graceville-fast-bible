@@ -51,7 +51,7 @@ export class SpeechToText {
         const engine = resolveSttEngine()
         const engineOptions = get(ai)?.stt?.engineOptions?.[engine] || {}
 
-        const result = await requestMain(Main.AI_LISTEN_START, { engine, engineOptions }, undefined, 60000)
+        const result = await requestMain(Main.AI_LISTEN_START, { engine, engineOptions }, undefined, 150000) // slow PCs: the engine may take up to 2 minutes to load
 
         if (token !== this.sessionToken) return { ok: false, aborted: true }
         if (!result?.started) return { ok: false, error: result?.error }

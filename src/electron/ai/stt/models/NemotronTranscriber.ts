@@ -5,7 +5,8 @@ import { chooseVoiceModel, getLightModelDir, reportSpeed } from "../voiceChoice"
 import { NemotronDriver, type NemotronWorkerRequest, type NemotronWorkerResponse } from "./nemotronWorker"
 import type { VoiceProfileId } from "./voiceProfiles"
 
-const WORKER_START_TIMEOUT = 30000
+// a slow PC with a hard drive can need well over 30 seconds to load the model while the rest of the app starts
+const WORKER_START_TIMEOUT = 120000
 const WORKER_FLUSH_TIMEOUT = 3000
 const WORKER_STALL_TIMEOUT = 60000
 const WORKER_STALL_CHECK_INTERVAL = 5000
@@ -29,6 +30,7 @@ export class NemotronTranscriber {
     private restarting = false
     private modelDir = ""
     private profile: VoiceProfileId = "light"
+    private workerSpawned = false
 
     constructor(options: SttEngineOptions, onSegment: (segment: TranscriberSegment) => void, onError: (message: string) => void, onInterim?: (text: string) => void) {
         this.options = options
@@ -46,6 +48,9 @@ export class NemotronTranscriber {
 
         if (await this.startWorker()) return true
         if (this.startErrorMessage) throw new Error(this.startErrorMessage)
+        // Graceville: never decode inside the main process when the decode process exists but was slow to start;
+        // that would make the whole app slow. Report it instead, and listening tries again by itself.
+        if (this.workerSpawned) throw new Error("The listening engine took too long to start")
 
         this.fallback = new NemotronDriver({
             language: this.options.language || "en",
@@ -106,6 +111,7 @@ export class NemotronTranscriber {
         try {
             const { utilityProcess } = require("electron") as typeof import("electron")
             if (!utilityProcess?.fork) return false
+            this.workerSpawned = false
             child = utilityProcess.fork(path.join(__dirname, "./nemotronWorker.js"), [], { serviceName: "Graceville Fast Bible listening" })
         } catch (err) {
             console.error("[nemotron] Could not spawn the decode process:", err)
@@ -113,6 +119,7 @@ export class NemotronTranscriber {
         }
 
         this.child = child
+        this.workerSpawned = true
         this.lastWorkerMessageAt = Date.now()
         this.armStallWatchdog()
 

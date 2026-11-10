@@ -185,6 +185,23 @@
         if (isEnabled && micDeviceId) state = result.ok ? "listening" : "error"
     }
 
+    // Graceville: listening must start by itself and keep going without anyone opening this panel.
+    // If it could not start (slow PC still loading, microphone not ready yet, engine stopped), try again quietly.
+    const LISTEN_RETRY_MS = 10000
+    let retrying = false
+    const listenRetry = setInterval(async () => {
+        if (retrying || !isEnabled || !micDeviceId || $sttTempDisabled) return
+        if (state !== "error" && state !== "inactive") return
+
+        retrying = true
+        try {
+            await enableListening()
+        } finally {
+            retrying = false
+        }
+    }, LISTEN_RETRY_MS)
+    onDestroy(() => clearInterval(listenRetry))
+
     function openSettings() {
         isOpen = false
         settingsTab.set("ai")
