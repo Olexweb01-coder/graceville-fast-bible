@@ -40,6 +40,13 @@ publish:
 win:
     # FreeShow signs with its own certificate; Graceville builds are not signed
     azureSignOptions: null
+    # FreeShow's Windows file list only has exclusions, which makes electron-builder pack the WHOLE project
+    # (source code, scripts, and the voice model a second time) into the app. Naming what belongs in the app
+    # keeps it to what actually runs (the same list as the main "files" above).
+    files:
+        - build/electron/**
+        - build/types/**
+        - public/**
 
 mac:
     identity: null
