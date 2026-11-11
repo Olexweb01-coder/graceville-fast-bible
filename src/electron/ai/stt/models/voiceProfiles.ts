@@ -1,8 +1,9 @@
 // Graceville Fast Bible: the two voice models the listening can run.
 //
-// full:  Nemotron 3.5 (about 680 MB, downloaded). Most accurate and many languages, but it needs a strong processor.
-// light: Kroko streaming Zipformer (about 70 MB, part of the installer). English, around 10 times less work for the
-//        processor, so it keeps up live even on old dual-core PCs and leaves the rest of the app fast.
+// light: Kroko streaming Zipformer (about 70 MB, part of the installer). English. Used on every PC: on Graceville's own
+//        sermon recordings it heard the pastor as well as the full model, held up better against echo and noise, and
+//        needs about a fifth of the processor time.
+// full:  Nemotron 3.5 (about 680 MB, only if it was downloaded by an older version and the light model is missing).
 //
 // This file is shared with the decode process, so it must not use Electron.
 
@@ -51,9 +52,3 @@ export const SPEED_WINDOW_SECONDS = 20
 
 /** the full model is too heavy when it needs more than this, two reports in a row (the app must stay responsive too) */
 export const FULL_TOO_SLOW_RATIO = 0.6
-
-/**
- * The full model needs roughly 5 times the light model's time (measured on the same processor, with its 2 threads).
- * A PC where the light model needs less than this should keep the full model under about half of real time.
- */
-export const LIGHT_RATIO_FOR_FULL = 0.1

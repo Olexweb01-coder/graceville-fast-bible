@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest"
 import { BibleSearchDetector } from "../BibleSearchDetector"
 import { correctBookNames } from "./bookNames"
+import { createVocabularySnapper } from "./vocabularySnap"
 import { buildTestCache } from "./testing/buildTestCache"
 
 // what the speech engines really wrote for clearly spoken references (light and full engine)
@@ -52,4 +53,16 @@ describe("Graceville: misheard book names", () => {
         for (let i = 0; i < 20; i++) correctBookNames(text)
         expect((performance.now() - started) / 20).toBeLessThan(5)
     })
+})
+
+describe("Graceville: misheard rare Bible words", () => {
+    const snap = createVocabularySnapper(["zerubbabel", "nebuchadnezzar", "frustrate", "assigned", "destroy", "foundation", "hand", "the"])
+
+    it.each([
+        ["zerebabel", "zerubbabel"],
+        ["zerubabel", "zerubbabel"],
+        ["nebuchadnessar", "nebuchadnezzar"]
+    ])("%s -> %s", (heard, bible) => expect(snap(heard)).toBe(bible))
+
+    it.each(["assignment", "destiny", "frustrate", "foundation", "gadara", "the", "hand", "2026"])("leaves '%s' alone", (word) => expect(snap(word)).toBe(null))
 })

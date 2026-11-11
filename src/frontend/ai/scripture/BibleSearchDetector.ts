@@ -6,8 +6,11 @@ import { normalizeBookName, RANGE_PATTERN, VERSE_PATTERN } from "./referenceDict
 import { normalizeReferences } from "./references"
 import { findFollowTarget, type FollowTarget } from "./graceville/liveFollow"
 import { AUTO_SHOW_CONFIDENCE, capInferredConfidence, findNextVerseRequest, hasSpokenVerseNumber, joinAdjacentVerses, prepareSpokenReferences, refineSpokenReferences } from "./graceville/spokenReferences"
+import { createVocabularySnapper } from "./graceville/vocabularySnap"
 
 export class BibleSearchDetector {
+    private snapWord: ((token: string) => string | null) | null = null
+
     constructor(private cacheData: BibleCacheData) {}
 
     // Graceville: the book / chapter / verse the preacher is naming right now (for live follow)
@@ -260,7 +263,9 @@ export class BibleSearchDetector {
         const parsedCurrent = this.parseReference(currentlyOutputted || "")
         const upcomingVerseMap = this.getUpcomingVerseMap(currentlyOutputted || "", 3)
 
-        const allTokens = this.tokenizeText(cleanInput)
+        // Graceville: rare Bible words heard slightly wrong are matched to the real word (see graceville/vocabularySnap.ts)
+        if (!this.snapWord) this.snapWord = createVocabularySnapper(this.cacheData.vocabPool)
+        const allTokens = this.tokenizeText(cleanInput).map((token) => this.snapWord!(token) || token)
         if (allTokens.length < 4) return null
 
         const windowSizes = [20, 60, 80, 120]

@@ -1,18 +1,17 @@
-// Graceville Fast Bible: picks the voice model this PC can really run, so listening works on ANY computer.
+// Graceville Fast Bible: picks the voice model for listening.
 //
-// - Every PC starts with the light model (part of the installer: no download, works offline straight away).
-// - While listening, the decode process reports how hard the processor works.
-//   If the light model leaves plenty of room (the full model should keep up too), the more accurate full model is
-//   downloaded in the background (never on a Sunday) and used from the next time listening starts.
-// - If the full model ever falls behind on this PC, the app switches back to the light model at once
-//   and remembers that this PC is too slow for it.
+// Tested on Graceville's own sermon recordings (November 2026): on a clean sound-desk feed every model heard the
+// pastor about equally well, but with room echo and noise the light model (Kroko) held up best, and it needs about a
+// fifth of the processor time of the full model (Nemotron). So the light model, which is part of the installer, is used
+// on every PC. The full model is only used if the light one is missing, and the app switches away from it at once if
+// it falls behind. Nothing is downloaded.
 
 import { app } from "electron"
 import fs from "fs"
 import path from "path"
 import { LocalModelManager } from "../setup/LocalModelManager"
 import { NemotronSetupManager } from "../setup/models/nemotron"
-import { FULL_TOO_SLOW_RATIO, LIGHT_RATIO_FOR_FULL, VOICE_PROFILES, type VoiceProfileId } from "./models/voiceProfiles"
+import { FULL_TOO_SLOW_RATIO, VOICE_PROFILES, type VoiceProfileId } from "./models/voiceProfiles"
 
 // raise to measure every PC again (2: the app itself no longer slows the voice engine down by searching seven Bibles)
 const MEMORY_VERSION = 2
@@ -67,19 +66,14 @@ async function isFullModelAvailable(): Promise<boolean> {
 // ----- choosing -----
 
 export async function chooseVoiceModel(): Promise<{ profile: VoiceProfileId; modelDir: string } | null> {
-    const lightOk = isLightModelAvailable()
-    const fullOk = await isFullModelAvailable()
-
-    if (fullOk && (!readMemory().fullTooSlow || !lightOk)) return { profile: "full", modelDir: LocalModelManager.getModelDir("nemotron") }
-    if (lightOk) return { profile: "light", modelDir: getLightModelDir() }
+    if (isLightModelAvailable()) return { profile: "light", modelDir: getLightModelDir() }
+    if (await isFullModelAvailable()) return { profile: "full", modelDir: LocalModelManager.getModelDir("nemotron") }
     return null
 }
 
 // ----- speed reports from the decode process -----
 
 let slowFullReports = 0
-let fastLightReports = 0
-let downloadStarted = false
 
 /** Returns true when the full model must be replaced by the light model right now. */
 export function reportSpeed(profile: VoiceProfileId, ratio: number): boolean {
@@ -95,26 +89,7 @@ export function reportSpeed(profile: VoiceProfileId, ratio: number): boolean {
     }
 
     writeMemory({ lightRatio: ratio })
-    fastLightReports = ratio < LIGHT_RATIO_FOR_FULL ? fastLightReports + 1 : 0
-    if (fastLightReports >= 1) void downloadFullModelIfWorthIt()
     return false
-}
-
-/** A strong PC gets the more accurate model, downloaded quietly in the background. */
-async function downloadFullModelIfWorthIt() {
-    if (downloadStarted || readMemory().fullTooSlow) return
-    if (new Date().getDay() === 0) return // never use the church's internet for a big download on a Sunday
-
-    // claimed straight away, so speed reports arriving meanwhile never start a second download
-    downloadStarted = true
-    try {
-        if (await isFullModelAvailable()) return
-        console.info("[voice] This PC is fast enough: downloading the full voice model in the background")
-        if (!(await LocalModelManager.downloadEngine("nemotron"))) downloadStarted = false // try again another time
-    } catch (err) {
-        console.warn("[voice] Background download failed:", err)
-        downloadStarted = false
-    }
 }
 
 /** For the status check: listening can start when either model is on this PC. */
