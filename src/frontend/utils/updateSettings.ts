@@ -128,7 +128,24 @@ export function updateSyncedSettings(data: any) {
     loadedState.set([...get(loadedState), "synced_settings"])
 }
 
+// Graceville: the main window only appears once the settings are applied ("LOADED").
+// If anything in the settings fails on a new PC, still tell the app it may show the window,
+// so it never stays invisible in the background.
 export function updateSettings(data: any) {
+    try {
+        applySettings(data)
+    } catch (err) {
+        console.error("Could not apply all settings:", err)
+    } finally {
+        // sending it twice is harmless: the app only listens for the first one
+        if (isMainWindow()) {
+            loaded.set(true)
+            window.api.send("LOADED")
+        }
+    }
+}
+
+function applySettings(data: any) {
     // pre v0.8.2 (data contains SaveListSyncedSettings, but it gets overwritten and removed on first save)
 
     // pre v1.6.1 (equalizerConfig was not in audioEffects)

@@ -240,6 +240,15 @@ function createMain() {
     loadWindowContent(mainWindow)
     setMainListeners()
 
+    // Graceville: never stay invisible. If the app has not shown its window after 25 seconds
+    // (a slow first start, or something on this PC got in the way), show it anyway.
+    setTimeout(() => {
+        if (isLoaded || !mainWindow || mainWindow.isDestroyed()) return
+        console.warn("[startup] The window was not ready after 25 seconds, showing it anyway")
+        showMainWindowInFront()
+        loadingWindow?.close()
+    }, 25000)
+
     if (RECORD_STARTUP_TIME) console.timeEnd("Main window")
 
     function getWindowBounds(type: "width" | "height") {
@@ -261,10 +270,25 @@ function mainWindowLoaded() {
     mainWindowInitialize()
     if (config.get("maximized")) maximizeMain()
 
-    mainWindow?.show()
+    showMainWindowInFront()
     loadingWindow?.close()
 
     if (RECORD_STARTUP_TIME) console.timeEnd("Full startup")
+}
+
+/** Shows the main window in front of other windows (after an install, Windows can otherwise leave it behind them). */
+function showMainWindowInFront() {
+    if (!mainWindow || mainWindow.isDestroyed()) return
+    if (mainWindow.isMinimized()) mainWindow.restore()
+    mainWindow.show()
+
+    if (process.platform === "win32") {
+        mainWindow.setAlwaysOnTop(true)
+        mainWindow.focus()
+        setTimeout(() => {
+            if (mainWindow && !mainWindow.isDestroyed()) mainWindow.setAlwaysOnTop(false)
+        }, 500)
+    } else mainWindow.focus()
 }
 
 export async function loadWindowContent(window: BrowserWindow, type: null | "output" | "media" = null) {
