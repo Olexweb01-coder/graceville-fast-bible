@@ -14,6 +14,8 @@ import { isSameOrLessPrecise, type FollowTarget } from "../scripture/graceville/
 import { detectBibleVersion } from "../scripture/BibleVersionDetector"
 import { isReferenceWithin } from "../scripture/references"
 
+const GRACEVILLE_SINGLE_BIBLE_SEARCH = true
+
 export class AiManager {
     private static lastMatch: number = 0
     private static MAX_LLM_REQUEST_AFTER_MATCH = 5000
@@ -116,8 +118,10 @@ export class AiManager {
         if (this.isPreloadStarted) return
         this.isPreloadStarted = true
 
-        // load scriptures
-        const localScriptureIds = this.getLocalScriptureIds()
+        // Graceville: only the Bible in use is prepared for listening. Preparing every installed Bible (seven come with
+        // the app) took minutes of processor time and a lot of memory on slow PCs; another Bible is prepared when chosen.
+        const activeBibleId = get(drawerTabsData)?.scripture?.activeSubTab
+        const localScriptureIds = this.getLocalScriptureIds().filter((id) => id === activeBibleId)
         BibleCacheManager.preloadAllInBackground(localScriptureIds)
     }
 
@@ -145,6 +149,10 @@ export class AiManager {
         // reference type matches stays on the active scripture
         if (match.scriptureMatchType !== "content") return match
 
+        // Graceville: the built-in Bibles are translations of the same verses, so searching each of them again for the
+        // same quoted words only repeats the work (seven times) and slows the app down; the active Bible's match is used.
+        if (GRACEVILLE_SINGLE_BIBLE_SEARCH) return match
+
         let highestConfidence = match.confidence || 0
 
         // Non-blocking concurrent scan
@@ -164,11 +172,24 @@ export class AiManager {
         return match
     }
 
+    // Graceville: looking for quoted verse words is the heavy part of listening. Spoken references are checked on every
+    // chunk (they are cheap); the word search runs at most every 1.5 s, and less often when this PC needs longer for it,
+    // so it never uses more than about a fifth of the processor and the app stays responsive.
+    private static nextContentSearchAt = 0
+    private static readonly CONTENT_SEARCH_MIN_GAP_MS = 1500
+    private static readonly CONTENT_SEARCH_SHARE = 5
+
     private static async bibleDetection(id: string, textChunk: string, isCancelled?: () => boolean) {
         const bibleCache = await BibleCacheManager.getCache(id)
         if (!bibleCache || isCancelled?.()) return null
 
-        const match = await bibleCache.search(textChunk, AiManager.liveContent, isCancelled)
+        const skipContent = Date.now() < this.nextContentSearchAt
+        const started = performance.now()
+        const match = await bibleCache.search(textChunk, AiManager.liveContent, isCancelled, { skipContent })
+        if (!skipContent && (!match || match.scriptureMatchType === "content")) {
+            const took = performance.now() - started
+            this.nextContentSearchAt = Date.now() + Math.max(this.CONTENT_SEARCH_MIN_GAP_MS, took * this.CONTENT_SEARCH_SHARE)
+        }
         if (!match) return null
 
         match.scriptureTranslation = id

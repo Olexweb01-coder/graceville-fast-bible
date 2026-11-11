@@ -2,8 +2,8 @@
 //
 // - Every PC starts with the light model (part of the installer: no download, works offline straight away).
 // - While listening, the decode process reports how hard the processor works.
-//   If even the light model barely uses the processor (a strong PC), the full model is downloaded in the
-//   background (never on a Sunday) and used from the next time listening starts.
+//   If the light model leaves plenty of room (the full model should keep up too), the more accurate full model is
+//   downloaded in the background (never on a Sunday) and used from the next time listening starts.
 // - If the full model ever falls behind on this PC, the app switches back to the light model at once
 //   and remembers that this PC is too slow for it.
 
@@ -14,7 +14,11 @@ import { LocalModelManager } from "../setup/LocalModelManager"
 import { NemotronSetupManager } from "../setup/models/nemotron"
 import { FULL_TOO_SLOW_RATIO, LIGHT_RATIO_FOR_FULL, VOICE_PROFILES, type VoiceProfileId } from "./models/voiceProfiles"
 
+// raise to measure every PC again (2: the app itself no longer slows the voice engine down by searching seven Bibles)
+const MEMORY_VERSION = 2
+
 interface VoiceMemory {
+    version?: number
     /** the full model fell behind on this PC */
     fullTooSlow?: boolean
     /** last measured work ratios */
@@ -26,9 +30,11 @@ const MEMORY_FILE = () => path.join(app.getPath("userData"), "graceville-voice.j
 
 function readMemory(): VoiceMemory {
     try {
-        return JSON.parse(fs.readFileSync(MEMORY_FILE(), "utf8")) || {}
+        const memory: VoiceMemory = JSON.parse(fs.readFileSync(MEMORY_FILE(), "utf8")) || {}
+        // results measured by an older version no longer count
+        return memory.version === MEMORY_VERSION ? memory : { version: MEMORY_VERSION }
     } catch {
-        return {}
+        return { version: MEMORY_VERSION }
     }
 }
 
@@ -90,7 +96,7 @@ export function reportSpeed(profile: VoiceProfileId, ratio: number): boolean {
 
     writeMemory({ lightRatio: ratio })
     fastLightReports = ratio < LIGHT_RATIO_FOR_FULL ? fastLightReports + 1 : 0
-    if (fastLightReports >= 3) void downloadFullModelIfWorthIt()
+    if (fastLightReports >= 1) void downloadFullModelIfWorthIt()
     return false
 }
 
@@ -98,11 +104,12 @@ export function reportSpeed(profile: VoiceProfileId, ratio: number): boolean {
 async function downloadFullModelIfWorthIt() {
     if (downloadStarted || readMemory().fullTooSlow) return
     if (new Date().getDay() === 0) return // never use the church's internet for a big download on a Sunday
-    if (await isFullModelAvailable()) return
 
+    // claimed straight away, so speed reports arriving meanwhile never start a second download
     downloadStarted = true
-    console.info("[voice] This PC is fast: downloading the full voice model in the background")
     try {
+        if (await isFullModelAvailable()) return
+        console.info("[voice] This PC is fast enough: downloading the full voice model in the background")
         if (!(await LocalModelManager.downloadEngine("nemotron"))) downloadStarted = false // try again another time
     } catch (err) {
         console.warn("[voice] Background download failed:", err)

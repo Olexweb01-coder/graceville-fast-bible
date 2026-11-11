@@ -53,7 +53,7 @@ export const SPEED_WINDOW_SECONDS = 20
 export const FULL_TOO_SLOW_RATIO = 0.6
 
 /**
- * The light model needs roughly 1/9 of the full model's work (measured on the same processor).
- * A PC where the light model needs less than this can comfortably run the full model.
+ * The full model needs roughly 5 times the light model's time (measured on the same processor, with its 2 threads).
+ * A PC where the light model needs less than this should keep the full model under about half of real time.
  */
-export const LIGHT_RATIO_FOR_FULL = 0.05
+export const LIGHT_RATIO_FOR_FULL = 0.1

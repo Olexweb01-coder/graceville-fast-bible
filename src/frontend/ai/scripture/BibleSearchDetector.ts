@@ -481,7 +481,8 @@ export class BibleSearchDetector {
     }
 
     private readonly DEBUG_MODE = false
-    public async search(transcript: string, currentlyOutputted: string, isCancelled?: () => boolean): Promise<MatchResult | null> {
+    /** `skipContent`: only look for spoken references, not for quoted verse words (much less work for the processor). */
+    public async search(transcript: string, currentlyOutputted: string, isCancelled?: () => boolean, options: { skipContent?: boolean } = {}): Promise<MatchResult | null> {
         if (this.DEBUG_MODE) console.log("[DETECTION] Starting search with transcript:", transcript)
         if (isCancelled?.()) return null
 
@@ -515,14 +516,17 @@ export class BibleSearchDetector {
         // throwing the found reference away until he paused.
         if (refMatch && refMatch.confidence >= 75) return refMatch
 
-        if (isCancelled?.()) return null
+        if (isCancelled?.() || options.skipContent) return null
+
+        // Graceville: when the mishearing fixes changed nothing, the same text is searched once instead of twice
+        const sameText = mishearingsCorrected === transcript
 
         // 1. Run active-context and fresh-context evaluations simultaneously
         const activeRawPromise = this.findContentMatch(transcript, currentlyOutputted, isCancelled)
-        const activeMishearingPromise = this.findContentMatch(mishearingsCorrected, currentlyOutputted, isCancelled)
+        const activeMishearingPromise = sameText ? Promise.resolve(null) : this.findContentMatch(mishearingsCorrected, currentlyOutputted, isCancelled)
 
         const freshRawPromise = currentlyOutputted ? this.findContentMatch(transcript, null, isCancelled) : Promise.resolve(null)
-        const freshMishearingPromise = currentlyOutputted ? this.findContentMatch(mishearingsCorrected, null, isCancelled) : Promise.resolve(null)
+        const freshMishearingPromise = currentlyOutputted && !sameText ? this.findContentMatch(mishearingsCorrected, null, isCancelled) : Promise.resolve(null)
 
         const [activeRaw, activeMishearing, freshRaw, freshMishearing] = await Promise.all([activeRawPromise, activeMishearingPromise, freshRawPromise, freshMishearingPromise])
 

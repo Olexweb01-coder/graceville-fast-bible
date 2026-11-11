@@ -91,9 +91,17 @@ describe("Graceville: choosing the voice model this PC can run", () => {
         expect(state.downloads).toBe(1)
     })
 
+    it("measures again after an update that changed the speed (older results are ignored)", async () => {
+        addLightModel()
+        state.fullOk = true
+        fs.writeFileSync(path.join(state.userData, "graceville-voice.json"), JSON.stringify({ fullTooSlow: true }))
+        const voice = await load()
+        expect((await voice.chooseVoiceModel())?.profile).toBe("full")
+    })
+
     it("never downloads the full model on a PC that was too slow for it", async () => {
         addLightModel()
-        fs.writeFileSync(path.join(state.userData, "graceville-voice.json"), JSON.stringify({ fullTooSlow: true }))
+        fs.writeFileSync(path.join(state.userData, "graceville-voice.json"), JSON.stringify({ version: 2, fullTooSlow: true }))
         vi.useFakeTimers({ toFake: ["Date"] })
         vi.setSystemTime(new Date("2026-11-10T10:00:00"))
         const voice = await load()
